@@ -13,6 +13,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.std.sol.screens.DashboardScreen
+import com.std.sol.screens.TransactionsScreen
+import com.std.sol.screens.BudgetsScreen
+import com.std.sol.screens.MoreScreen
 
 @Composable
 fun AppNavigation() {
