@@ -68,7 +68,7 @@ fun RegisterScreen(navController: NavController?) {
 
             StaggeredItem(index = 0, durationMillis = 1500) {
                 Text(
-                    text = "Welcome To,",
+                    text = stringResource(R.string.welcome_to),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Normal,
@@ -96,8 +96,8 @@ fun RegisterScreen(navController: NavController?) {
                 SpaceTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = "Username",
-                    placeholder = "Enter username",
+                    label = stringResource(R.string.username),
+                    placeholder = stringResource(R.string.enter_username),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -108,8 +108,8 @@ fun RegisterScreen(navController: NavController?) {
                 SpaceTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = "Password",
-                    placeholder = "Enter password",
+                    label = stringResource(R.string.password),
+                    placeholder = stringResource(R.string.enter_password),
                     keyboardType = KeyboardType.Password,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
@@ -128,12 +128,12 @@ fun RegisterScreen(navController: NavController?) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             StaggeredItem(index = 4) {
                 val loginText = buildAnnotatedString {
                     withStyle(SpanStyle(color = StarGlow)) {
-                        append("Already have an account? ")
+                        append(stringResource(R.string.already_have_an_account))
                     }
 
                     withLink(
@@ -150,7 +150,7 @@ fun RegisterScreen(navController: NavController?) {
                                 fontWeight = FontWeight.SemiBold
                             )
                         ) {
-                            append("Login")
+                            append(stringResource(R.string.login))
                         }
                     }
                 }
@@ -163,11 +163,11 @@ fun RegisterScreen(navController: NavController?) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             StaggeredItem(index = 5) {
                 SpaceButton(
-                    text = "Sign Up",
+                    text = stringResource(R.string.sign_up),
                     onClick = {
                         // TODO: validation
                         navController?.navigate(Screen.NavScreen.route)
