@@ -1,6 +1,5 @@
 package com.std.sol
 
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -8,18 +7,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.std.sol.screens.DashboardScreen
-import com.std.sol.screens.TransactionsScreen
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.navigation.NavController
 import com.std.sol.screens.BudgetsScreen
+import com.std.sol.screens.DashboardScreen
 import com.std.sol.screens.MoreScreen
+import com.std.sol.screens.TransactionsScreen
 
 @Composable
-fun AppNavigation() {
+fun NavScreen(navController: NavController) {
     val navController = rememberNavController()
     val items = listOf(
         Screen.Dashboard, Screen.Transactions, Screen.Budgets, Screen.More
@@ -50,10 +52,19 @@ fun AppNavigation() {
             startDestination = Screen.Dashboard.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Dashboard.route) { DashboardScreen() }
-            composable(Screen.Transactions.route) { TransactionsScreen() }
-            composable(Screen.Budgets.route) { BudgetsScreen() }
-            composable(Screen.More.route) { MoreScreen() }
+            composable(Screen.Dashboard.route) { DashboardScreen(navController) }
+            composable(Screen.Transactions.route) { TransactionsScreen(navController) }
+            composable(Screen.Budgets.route) { BudgetsScreen(navController) }
+            composable(Screen.More.route) { MoreScreen(navController) }
         }
     }
 }
+
+
+@Preview
+@Composable
+fun NavScreenPreview() {
+    NavScreen(rememberNavController())
+}
+
+
