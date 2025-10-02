@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.room)
 
     kotlin("plugin.serialization") version "2.2.0"
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -66,7 +67,7 @@ dependencies {
     implementation(libs.androidx.navigation.dynamic.features.fragment)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.compose.material.icons.extended)
-
+    implementation(libs.androidx.compose.ui.text.google.fonts)
 
     testImplementation(libs.junit)
 
@@ -81,5 +82,5 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     implementation(libs.gson)
-    annotationProcessor(libs.room.compiler)
+    ksp(libs.room.compiler)
 }

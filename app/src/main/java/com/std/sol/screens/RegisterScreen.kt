@@ -1,5 +1,7 @@
 package com.std.sol.screens
 
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,7 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -20,26 +25,30 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.std.sol.components.SpaceTextField
-import com.std.sol.components.SpaceButton
-import com.std.sol.components.StaggeredItem
-import com.std.sol.ui.theme.*
-import androidx.compose.ui.res.stringResource
-import com.std.sol.R
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.withLink
 import androidx.navigation.NavController
-import com.std.sol.Screen
-import androidx.compose.material3.Text
 import androidx.navigation.compose.rememberNavController
-
+import com.std.sol.R
+import com.std.sol.Screen
+import com.std.sol.components.SpaceButton
+import com.std.sol.components.SpaceTextField
+import com.std.sol.components.StaggeredItem
+import com.std.sol.entities.User
+import com.std.sol.ui.theme.Amber
+import com.std.sol.ui.theme.AuthGradient
+import com.std.sol.ui.theme.Ivory
+import com.std.sol.ui.theme.SolTheme
+import com.std.sol.utils.PasswordUtils
+import com.std.sol.viewmodels.UserViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
-fun RegisterScreen(navController: NavController) {
+fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
@@ -47,6 +56,8 @@ fun RegisterScreen(navController: NavController) {
     var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
     val passwordsMatch = password == confirmPassword
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -85,7 +96,7 @@ fun RegisterScreen(navController: NavController) {
                         fontSize = 70.sp,
                         fontWeight = FontWeight.Bold,
                         fontStyle = FontStyle.Italic,
-                        color = SunGlow
+                        color = Amber
                     ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -122,7 +133,7 @@ fun RegisterScreen(navController: NavController) {
                                     else android.R.drawable.ic_secure
                                 ),
                                 contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                tint = StarGlow
+                                tint = Ivory
                             )
                         }
                     },
@@ -141,14 +152,16 @@ fun RegisterScreen(navController: NavController) {
                     keyboardType = KeyboardType.Password,
                     visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
-                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                        IconButton(onClick = {
+                            confirmPasswordVisible = !confirmPasswordVisible
+                        }) {
                             Icon(
                                 painter = painterResource(
                                     if (confirmPasswordVisible) android.R.drawable.ic_menu_view
                                     else android.R.drawable.ic_secure
                                 ),
                                 contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
-                                tint = StarGlow
+                                tint = Ivory
                             )
                         }
                     },
@@ -156,20 +169,11 @@ fun RegisterScreen(navController: NavController) {
                 )
             }
 
-            if (confirmPassword.isNotEmpty() && !passwordsMatch) {
-                Text(
-                    text = "Passwords do not match",
-                    color = Color.Red,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             StaggeredItem(index = 5) {
                 val loginText = buildAnnotatedString {
-                    withStyle(SpanStyle(color = StarGlow)) {
+                    withStyle(SpanStyle(color = Ivory)) {
                         append(stringResource(R.string.already_have_an_account))
                     }
 
@@ -183,7 +187,7 @@ fun RegisterScreen(navController: NavController) {
                     ) {
                         withStyle(
                             SpanStyle(
-                                color = SunGlow,
+                                color = Amber,
                                 fontWeight = FontWeight.SemiBold
                             )
                         ) {
@@ -205,8 +209,14 @@ fun RegisterScreen(navController: NavController) {
                 SpaceButton(
                     text = stringResource(R.string.sign_up),
                     onClick = {
-                        // TODO: validation & registration
-                        navController.navigate(Screen.NavScreen.route)
+                        handleRegistration(
+                            scope,
+                            userViewModel,
+                            username,
+                            password,
+                            context,
+                            navController
+                        )
                     },
                     enabled = username.isNotBlank() && password.isNotBlank() && passwordsMatch,
                     modifier = Modifier
@@ -218,10 +228,48 @@ fun RegisterScreen(navController: NavController) {
     }
 }
 
-@Preview
+private fun handleRegistration(
+    scope: CoroutineScope,
+    userViewModel: UserViewModel?,
+    username: String,
+    password: String,
+    context: Context,
+    navController: NavController
+) {
+    scope.launch {
+        val existingUser = userViewModel?.getUserByUsername(username)
+        if (existingUser != null) {
+            Toast.makeText(
+                context,
+                "Username already taken",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            val passwordHash = PasswordUtils.hashPassword(password)
+            val newUser =
+                User(
+                    id = 0,
+                    username = username,
+                    passwordHash = passwordHash
+                )
+            userViewModel?.addUser(newUser)
+            Toast.makeText(
+                context,
+                "Registration successful!",
+                Toast.LENGTH_SHORT
+            ).show()
+            navController.navigate(Screen.NavScreen.route)
+        }
+    }
+}
+
+@Preview(showBackground = true)
 @Composable
 fun RegisterScreenPreview() {
     SolTheme {
-        RegisterScreen(rememberNavController())
+        RegisterScreen(
+            navController = rememberNavController(),
+            userViewModel = null
+        )
     }
 }

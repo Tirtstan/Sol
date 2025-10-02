@@ -1,5 +1,7 @@
 package com.std.sol.screens
 
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -20,8 +23,6 @@ import androidx.compose.ui.unit.sp
 import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
 import com.std.sol.ui.theme.SolTheme
-import com.std.sol.ui.theme.StarGlow
-import com.std.sol.ui.theme.SunGlow
 import com.std.sol.Screen
 import androidx.navigation.NavController
 import androidx.compose.ui.text.font.FontWeight
@@ -38,14 +39,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.R
 import com.std.sol.components.StaggeredItem
+import com.std.sol.entities.User
+import com.std.sol.ui.theme.Amber
+import com.std.sol.ui.theme.Ivory
 import com.std.sol.ui.theme.AuthGradient
-
+import com.std.sol.utils.PasswordUtils
+import com.std.sol.viewmodels.UserViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(navController: NavController, userViewModel: UserViewModel?) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -65,80 +74,88 @@ fun LoginScreen(navController: NavController) {
         ) {
             Spacer(modifier = Modifier.height(60.dp))
 
-            Text(
-                text = "Welcome Back,",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Normal,
-                    fontStyle = FontStyle.Italic
-                ),
-                textAlign = TextAlign.Center
-            )
+            StaggeredItem(index = 0, durationMillis = 1500) {
+                Text(
+                    text = "Welcome Back,",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Normal,
+                        fontStyle = FontStyle.Italic
+                    ),
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "Log in to continue...",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontStyle = FontStyle.Italic,
-                    color = SunGlow
-                ),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
+            StaggeredItem(index = 1, durationMillis = 1500) {
+                Text(
+                    text = "Log in to continue...",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontStyle = FontStyle.Italic,
+                        color = Amber
+                    ),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+            }
 
-            SpaceTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = stringResource(R.string.username),
-                placeholder = stringResource(R.string.enter_username),
-                modifier = Modifier.fillMaxWidth()
-            )
+            StaggeredItem(index = 2) {
+                SpaceTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = stringResource(R.string.username),
+                    placeholder = stringResource(R.string.enter_username),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            SpaceTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = stringResource(R.string.password),
-                placeholder = stringResource(R.string.enter_password),
-                keyboardType = KeyboardType.Password,
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            painter = painterResource(
-                                if (passwordVisible) android.R.drawable.ic_menu_view else android.R.drawable.ic_secure
-                            ),
-                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                            tint = StarGlow
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+            StaggeredItem(index = 3) {
+                SpaceTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = stringResource(R.string.password),
+                    placeholder = stringResource(R.string.enter_password),
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                painter = painterResource(
+                                    if (passwordVisible) android.R.drawable.ic_menu_view else android.R.drawable.ic_secure
+                                ),
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                tint = Ivory
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             StaggeredItem(index = 4) {
-                val loginText = buildAnnotatedString {
-                    withStyle(SpanStyle(color = StarGlow)) {
-                        append(stringResource(R.string.already_have_an_account))
+                val registerText = buildAnnotatedString {
+                    withStyle(SpanStyle(color = Ivory)) {
+                        append(stringResource(R.string.don_t_have_an_account))
                     }
 
                     withLink(
                         LinkAnnotation.Clickable(
                             tag = "register",
                             linkInteractionListener = {
-                                navController.navigate(Screen.Login.route)
+                                navController.navigate(Screen.Register.route)
                             }
                         )
                     ) {
                         withStyle(
                             SpanStyle(
-                                color = SunGlow,
+                                color = Amber,
                                 fontWeight = FontWeight.SemiBold
                             )
                         ) {
@@ -148,7 +165,7 @@ fun LoginScreen(navController: NavController) {
                 }
 
                 Text(
-                    text = loginText,
+                    text = registerText,
                     fontSize = 14.sp,
                     style = MaterialTheme.typography.bodyMedium.copy(color = Color.Unspecified)
                 )
@@ -156,25 +173,55 @@ fun LoginScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            SpaceButton(
-                text = "Log In",
-                onClick = {
-                    // TODO: handle authentication
-                    navController.navigate(Screen.NavScreen.route)
-                },
-                enabled = username.isNotBlank() && password.isNotBlank(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            )
+            StaggeredItem(index = 5) {
+                SpaceButton(
+                    text = "Log In",
+                    onClick = {
+                        handleLogin(
+                            scope,
+                            userViewModel,
+                            username,
+                            password,
+                            context,
+                            navController
+                        )
+                    },
+                    enabled = username.isNotBlank() && password.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun handleLogin(
+    scope: CoroutineScope,
+    userViewModel: UserViewModel?,
+    username: String,
+    password: String,
+    context: Context,
+    navController: NavController
+) {
+    scope.launch {
+        val user = userViewModel?.getUserByUsername(username)
+        if (user != null && PasswordUtils.verifyPassword(password, user.passwordHash)) {
+            Toast.makeText(context, "Login successful!", Toast.LENGTH_SHORT).show()
+            navController.navigate(Screen.NavScreen.route)
+        } else {
+            Toast.makeText(context, "Invalid username or password", Toast.LENGTH_SHORT).show()
         }
     }
 }
 
 @Composable
-@Preview
+@Preview(showBackground = true)
 fun LoginScreenPreview() {
     SolTheme {
-        LoginScreen(rememberNavController())
+        LoginScreen(
+            navController = rememberNavController(),
+            userViewModel = null
+        )
     }
 }

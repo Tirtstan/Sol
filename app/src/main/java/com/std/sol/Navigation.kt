@@ -21,7 +21,7 @@ import com.std.sol.screens.MoreScreen
 import com.std.sol.screens.TransactionsScreen
 
 @Composable
-fun NavScreen(navController: NavController) {
+fun NavScreen() {
     val navController = rememberNavController()
     val items = listOf(
         Screen.Dashboard, Screen.Transactions, Screen.Budgets, Screen.More
@@ -61,10 +61,10 @@ fun NavScreen(navController: NavController) {
 }
 
 
-@Preview
+@Preview()
 @Composable
 fun NavScreenPreview() {
-    NavScreen(rememberNavController())
+    NavScreen()
 }
 
 

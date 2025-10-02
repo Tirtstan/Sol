@@ -26,9 +26,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.tooling.preview.Preview
-import com.std.sol.ui.theme.CosmicPurple40
 import com.std.sol.ui.theme.SolTheme
-import com.std.sol.ui.theme.StarGlow
+import com.std.sol.ui.theme.Plum
+import com.std.sol.ui.theme.Amber
 
 @Composable
 fun SpaceButton(
@@ -53,8 +53,8 @@ fun SpaceButton(
             .shadow(
                 elevation = if (enabled) 18.dp else 0.dp,
                 shape = shape,
-                ambientColor = CosmicPurple40,
-                spotColor = CosmicPurple40
+                ambientColor = Plum,
+                spotColor = Plum
             )
     ) {
         // Gradient backdrop
@@ -65,9 +65,9 @@ fun SpaceButton(
                 .background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
-                            CosmicPurple40.copy(alpha = if (enabled) 1f else 0.5f),
-                            CosmicPurple40.copy(alpha = if (enabled) 0.9f else 0.4f),
-                            StarGlow.copy(alpha = if (enabled) 0.6f else 0.2f)
+                            Plum.copy(alpha = if (enabled) 1f else 0.5f),
+                            Plum.copy(alpha = if (enabled) 0.9f else 0.4f),
+                            Amber.copy(alpha = if (enabled) 0.6f else 0.2f)
                         )
                     )
                 )
@@ -82,7 +82,7 @@ fun SpaceButton(
             shape = shape,
             border = BorderStroke(
                 width = 1.dp,
-                color = StarGlow.copy(alpha = if (enabled) 0.8f else 0.25f)
+                color = Amber.copy(alpha = if (enabled) 0.8f else 0.25f)
             ),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,

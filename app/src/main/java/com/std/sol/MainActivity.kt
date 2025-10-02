@@ -7,24 +7,26 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.std.sol.databases.DatabaseProvider
 import com.std.sol.screens.LoginScreen
 import com.std.sol.screens.RegisterScreen
 import com.std.sol.ui.theme.SolTheme
+import com.std.sol.viewmodels.UserViewModel
+import com.std.sol.viewmodels.ViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,11 +56,13 @@ fun AppNavHost(
     navController: NavHostController,
     startDestination: String = Screen.Register.route
 ) {
+    val context = LocalContext.current
+    val viewModelFactory = ViewModelFactory(DatabaseProvider.getDatabase(context))
+
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-
         composable(
             Screen.Register.route,
             enterTransition = {
@@ -70,7 +74,8 @@ fun AppNavHost(
                         fadeOut(animationSpec = tween(500))
             }
         ) {
-            RegisterScreen(navController)
+            val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
+            RegisterScreen(navController, userViewModel)
         }
 
         composable(
@@ -84,7 +89,8 @@ fun AppNavHost(
                         fadeOut(animationSpec = tween(500))
             }
         ) {
-            LoginScreen(navController)
+            val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
+            LoginScreen(navController, userViewModel)
         }
 
         composable(
@@ -98,7 +104,7 @@ fun AppNavHost(
                         fadeOut(animationSpec = tween(500))
             }
         ) {
-            NavScreen(navController)
+            NavScreen()
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.std.sol.components
 
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -34,7 +33,7 @@ fun SpaceTextField(
                 label,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontFamily = SpaceMonoFont,
-                    color = StarGlow,
+                    color = Ivory,
                     fontSize = 14.sp
                 )
             )
@@ -51,17 +50,17 @@ fun SpaceTextField(
         visualTransformation = visualTransformation,
         trailingIcon = trailingIcon,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = CosmicPurple40,
-            unfocusedBorderColor = StarGlow,
+            focusedBorderColor = Ocean,
+            unfocusedBorderColor = Ivory,
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
-            cursorColor = CosmicPurple40
+            cursorColor = Ocean
         ),
         shape = RoundedCornerShape(50.dp)
     )
 }
 
-@Preview
+@Preview(showBackground = true, backgroundColor = 0xFF25315E)
 @Composable
 fun SpaceTextFieldPreview() {
     SolTheme {
@@ -69,7 +68,7 @@ fun SpaceTextFieldPreview() {
             value = "",
             onValueChange = {},
             label = "Username",
-            placeholder = "Enter your username"
+            placeholder = "Enter username"
         )
     }
 }
