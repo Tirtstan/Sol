@@ -14,14 +14,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.padding
-import androidx.navigation.NavController
 import com.std.sol.screens.BudgetsScreen
 import com.std.sol.screens.DashboardScreen
 import com.std.sol.screens.MoreScreen
 import com.std.sol.screens.TransactionsScreen
+import com.std.sol.viewmodels.UserViewModel
 
 @Composable
-fun NavScreen() {
+fun NavScreen(userViewModel: UserViewModel) {
     val navController = rememberNavController()
     val items = listOf(
         Screen.Dashboard, Screen.Transactions, Screen.Budgets, Screen.More
@@ -52,10 +52,15 @@ fun NavScreen() {
             startDestination = Screen.Dashboard.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Dashboard.route) { DashboardScreen(navController) }
-            composable(Screen.Transactions.route) { TransactionsScreen(navController) }
-            composable(Screen.Budgets.route) { BudgetsScreen(navController) }
-            composable(Screen.More.route) { MoreScreen(navController) }
+            composable(Screen.Dashboard.route) { DashboardScreen(navController, userViewModel) }
+            composable(Screen.Transactions.route) {
+                TransactionsScreen(
+                    navController,
+                    userViewModel
+                )
+            }
+            composable(Screen.Budgets.route) { BudgetsScreen(navController, userViewModel) }
+            composable(Screen.More.route) { MoreScreen(navController, userViewModel) }
         }
     }
 }
@@ -64,7 +69,12 @@ fun NavScreen() {
 @Preview()
 @Composable
 fun NavScreenPreview() {
-    NavScreen()
+    // Previews cannot access the real database or ViewModel, so we pass null.
+    // A more robust solution would be a fake ViewModel for previews.
+    val userViewModel: UserViewModel? = null
+    userViewModel?.let {
+        NavScreen(userViewModel = it)
+    }
 }
 
 

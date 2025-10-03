@@ -2,13 +2,17 @@ package com.std.sol.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.std.sol.SessionManager
 import com.std.sol.databases.AppDatabase
 
-class ViewModelFactory(private val db: AppDatabase) : ViewModelProvider.Factory {
+class ViewModelFactory(
+    private val db: AppDatabase,
+    private val sessionManager: SessionManager
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(UserViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return UserViewModel(db.userDao()) as T
+            return UserViewModel(db.userDao(), sessionManager) as T
         }
         if (modelClass.isAssignableFrom(TransactionViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

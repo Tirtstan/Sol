@@ -9,12 +9,18 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -53,11 +59,27 @@ fun Main() {
 
 @Composable
 fun AppNavHost(
-    navController: NavHostController,
-    startDestination: String = Screen.Register.route
+    navController: NavHostController
 ) {
+    val isInPreview = LocalInspectionMode.current
     val context = LocalContext.current
-    val viewModelFactory = ViewModelFactory(DatabaseProvider.getDatabase(context))
+    val viewModelFactory = ViewModelFactory(
+        DatabaseProvider.getDatabase(context.applicationContext),
+        SessionManager(context.applicationContext)
+    )
+    val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
+    val currentUser by userViewModel.currentUser.collectAsState()
+    val isLoading by userViewModel.isLoading.collectAsState()
+
+    if (isLoading && !isInPreview) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val startDestination =
+        if (currentUser != null) Screen.NavScreen.route else Screen.Register.route
 
     NavHost(
         navController = navController,
@@ -74,7 +96,6 @@ fun AppNavHost(
                         fadeOut(animationSpec = tween(500))
             }
         ) {
-            val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
             RegisterScreen(navController, userViewModel)
         }
 
@@ -89,7 +110,6 @@ fun AppNavHost(
                         fadeOut(animationSpec = tween(500))
             }
         ) {
-            val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
             LoginScreen(navController, userViewModel)
         }
 
@@ -104,7 +124,7 @@ fun AppNavHost(
                         fadeOut(animationSpec = tween(500))
             }
         ) {
-            NavScreen()
+            NavScreen(userViewModel)
         }
     }
 }
