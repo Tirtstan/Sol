@@ -224,7 +224,7 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
                     enabled = username.isNotBlank() && password.isNotBlank() && passwordsMatch,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(60.dp)
                 )
             }
         }
@@ -265,10 +265,7 @@ private fun handleRegistration(
                     "Registration successful!",
                     Toast.LENGTH_SHORT
                 ).show()
-                navController.navigate(Screen.NavScreen.route) {
-                    // Clear back stack to prevent going back to auth screens
-                    popUpTo(Screen.Register.route) { inclusive = true }
-                }
+                navController.navigate(Screen.Dashboard.route)
             } else {
                 Toast.makeText(
                     context,

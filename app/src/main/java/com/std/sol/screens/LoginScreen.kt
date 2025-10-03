@@ -192,7 +192,7 @@ fun LoginScreen(navController: NavController, userViewModel: UserViewModel?) {
                     enabled = username.isNotBlank() && password.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(60.dp)
                 )
             }
         }
@@ -212,10 +212,7 @@ private fun handleLogin(
         if (user != null && PasswordUtils.verifyPassword(password, user.passwordHash)) {
             userViewModel.setCurrentUser(user)
             Toast.makeText(context, "Login successful!", Toast.LENGTH_SHORT).show()
-            navController.navigate(Screen.NavScreen.route) {
-                // Clear back stack to prevent going back to login
-                popUpTo(Screen.Login.route) { inclusive = true }
-            }
+            navController.navigate(Screen.Dashboard.route)
         } else {
             Toast.makeText(context, "Invalid username or password", Toast.LENGTH_SHORT).show()
         }
