@@ -42,3 +42,9 @@ val AuthGradient = listOf(
     Indigo,    // mid tone
     RoyalBright // bright accent
 )
+
+val MoreScreenGradient = listOf(
+    IndigoDark,
+    DeepSpaceBase,
+    Indigo
+)
