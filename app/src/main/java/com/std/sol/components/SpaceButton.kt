@@ -44,11 +44,16 @@ fun SpaceButton(
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.98f else 1f, label = "spaceButtonScale")
 
+    // Animate alpha when enabled/disabled
+    val targetAlpha = if (enabled) 1f else 0.5f
+    val animatedAlpha by animateFloatAsState(targetAlpha, label = "spaceButtonAlpha")
+
     Box(
         modifier = modifier
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+                alpha = animatedAlpha
             }
             .shadow(
                 elevation = if (enabled) 18.dp else 0.dp,
@@ -73,7 +78,6 @@ fun SpaceButton(
                 )
         )
 
-        // Transparent M3 button over the gradient (keeps ripple, semantics)
         Button(
             onClick = onClick,
             enabled = enabled,

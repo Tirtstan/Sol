@@ -46,6 +46,7 @@ import com.std.sol.utils.PasswordUtils
 import com.std.sol.viewmodels.UserViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.std.sol.components.StarryBackground
 
 @Composable
 fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) {
@@ -68,6 +69,8 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
                 )
             )
     ) {
+        StarryBackground()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -253,12 +256,26 @@ private fun handleRegistration(
                     passwordHash = passwordHash
                 )
             userViewModel?.addUser(newUser)
-            Toast.makeText(
-                context,
-                "Registration successful!",
-                Toast.LENGTH_SHORT
-            ).show()
-            navController.navigate(Screen.NavScreen.route)
+
+            val createdUser = userViewModel?.getUserByUsername(username)
+            if (createdUser != null) {
+                userViewModel.setCurrentUser(createdUser)
+                Toast.makeText(
+                    context,
+                    "Registration successful!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                navController.navigate(Screen.NavScreen.route) {
+                    // Clear back stack to prevent going back to auth screens
+                    popUpTo(Screen.Register.route) { inclusive = true }
+                }
+            } else {
+                Toast.makeText(
+                    context,
+                    "Registration failed. Please try again.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 }

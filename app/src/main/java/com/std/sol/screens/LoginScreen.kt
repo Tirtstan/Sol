@@ -39,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.R
 import com.std.sol.components.StaggeredItem
+import com.std.sol.components.StarryBackground
 import com.std.sol.entities.User
 import com.std.sol.ui.theme.Amber
 import com.std.sol.ui.theme.Ivory
@@ -65,6 +66,8 @@ fun LoginScreen(navController: NavController, userViewModel: UserViewModel?) {
                 )
             )
     ) {
+        StarryBackground()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -207,8 +210,12 @@ private fun handleLogin(
     scope.launch {
         val user = userViewModel?.getUserByUsername(username)
         if (user != null && PasswordUtils.verifyPassword(password, user.passwordHash)) {
+            userViewModel.setCurrentUser(user)
             Toast.makeText(context, "Login successful!", Toast.LENGTH_SHORT).show()
-            navController.navigate(Screen.NavScreen.route)
+            navController.navigate(Screen.NavScreen.route) {
+                // Clear back stack to prevent going back to login
+                popUpTo(Screen.Login.route) { inclusive = true }
+            }
         } else {
             Toast.makeText(context, "Invalid username or password", Toast.LENGTH_SHORT).show()
         }
