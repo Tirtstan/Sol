@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,6 +37,9 @@ fun SpaceButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    gradientColors: List<Color> = listOf(Plum, Plum.copy(alpha = 0.9f), Amber.copy(alpha = 0.6f)),
+    shadowColor: Color = Plum,
+    borderColor: Color = Amber,
     leadingIcon: (@Composable (() -> Unit))? = null,
     trailingIcon: (@Composable (() -> Unit))? = null
 ) {
@@ -56,11 +60,12 @@ fun SpaceButton(
                 alpha = animatedAlpha
             }
             .shadow(
-                elevation = if (enabled) 18.dp else 0.dp,
+                elevation = if (enabled) 8.dp else 0.dp,
                 shape = shape,
-                ambientColor = Plum,
-                spotColor = Plum
+                ambientColor = shadowColor,
+                spotColor = shadowColor
             )
+            .height(60.dp)
     ) {
         // Gradient backdrop
         Box(
@@ -69,11 +74,7 @@ fun SpaceButton(
                 .clip(shape)
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Plum.copy(alpha = if (enabled) 1f else 0.5f),
-                            Plum.copy(alpha = if (enabled) 0.9f else 0.4f),
-                            Amber.copy(alpha = if (enabled) 0.6f else 0.2f)
-                        )
+                        colors = gradientColors.map { it.copy(alpha = it.alpha * animatedAlpha) }
                     )
                 )
         )
@@ -86,14 +87,14 @@ fun SpaceButton(
             shape = shape,
             border = BorderStroke(
                 width = 1.dp,
-                color = Amber.copy(alpha = if (enabled) 0.8f else 0.25f)
+                color = borderColor.copy(alpha = if (enabled) 0.8f else 0.25f)
             ),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
                 disabledContainerColor = Color.Transparent,
                 contentColor = Color.White,
                 disabledContentColor = Color(0xFF94A3B8)
-            )
+            ),
         ) {
             if (leadingIcon != null) {
                 leadingIcon()
@@ -108,19 +109,23 @@ fun SpaceButton(
                 trailingIcon()
             }
         }
+
+
     }
 }
 
-@Preview
+@Preview(showBackground = true, backgroundColor = 0xFF0B1426)
 @Composable
 fun SpaceButtonPreview() {
     SolTheme {
-        SpaceButton(
-            text = "Click Me",
-            onClick = {},
-            modifier = Modifier
-                .width(200.dp)
-                .height(60.dp)
-        )
+        Box(modifier = Modifier.padding(50.dp)) {
+            SpaceButton(
+                text = "Click Me",
+                onClick = {},
+                modifier = Modifier
+                    .width(200.dp)
+            )
+        }
+
     }
 }

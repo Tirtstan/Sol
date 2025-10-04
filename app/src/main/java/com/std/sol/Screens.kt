@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.MoreHoriz
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object NavScreen : Screen("nav_screen", "Navigation", Icons.Filled.Home)
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Filled.Home)
     object Transactions : Screen("transactions", "Transactions", Icons.Filled.AddCircle)
     object Budgets : Screen("budgets", "Budgets", Icons.Filled.AccountBalanceWallet)

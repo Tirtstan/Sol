@@ -42,7 +42,7 @@ fun StarryBackground(modifier: Modifier = Modifier, starCount: Int = 150) {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 12000, easing = LinearEasing),
+            animation = tween(durationMillis = 20000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ), label = "starProgress"
     )
