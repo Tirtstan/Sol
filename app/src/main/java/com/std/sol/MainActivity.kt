@@ -38,6 +38,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.databases.DatabaseProvider
+import com.std.sol.screens.AddTransactionScreen
 import com.std.sol.screens.BudgetsScreen
 import com.std.sol.screens.DashboardScreen
 import com.std.sol.screens.LoginScreen
@@ -181,6 +182,8 @@ fun AppNavHost(
         composable(Screen.Transactions.route) { TransactionsScreen(navController, userViewModel) }
         composable(Screen.Budgets.route) { BudgetsScreen(navController, userViewModel) }
         composable(Screen.More.route) { MoreScreen(navController, userViewModel) }
+        composable("add_transaction") { AddTransactionScreen(navController, userViewModel)
+        }
     }
 }
 
@@ -189,3 +192,4 @@ fun AppNavHost(
 fun MainPreview() {
     Main()
 }
+

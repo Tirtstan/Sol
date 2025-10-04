@@ -71,7 +71,9 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
     implementation(libs.datetime)
-
+    implementation(libs.androidx.compose.ui.geometry)
+    implementation(libs.coil.compose.v240)
+    implementation(libs.androidx.material3)
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.junit)

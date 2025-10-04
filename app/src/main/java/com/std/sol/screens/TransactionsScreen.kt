@@ -1,35 +1,34 @@
 package com.std.sol.screens
 
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import android.provider.MediaStore
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
+import androidx.navigation.compose.rememberNavController
+import com.std.sol.components.StarryBackground
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
@@ -39,12 +38,15 @@ import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.SessionManager
+import com.std.sol.entities.User
+import com.std.sol.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.cos
+import kotlin.math.sin
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransactionsScreen(navController: NavController, userViewModel: UserViewModel) {
+fun TransactionsScreen(navController: NavController, userViewModel: UserViewModel?) {
     val context = LocalContext.current
     val viewModelFactory = ViewModelFactory(
         DatabaseProvider.getDatabase(context),
@@ -53,524 +55,356 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     val transactionViewModel: TransactionViewModel = viewModel(factory = viewModelFactory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
 
-    val currentUser by userViewModel.currentUser.collectAsState()
-    val userId = currentUser?.id ?: return
+    val user: User? by userViewModel?.currentUser?.collectAsState() ?: remember {
+        mutableStateOf(User(id = -1, username = "John Doe", passwordHash = ""))
+    }
+    val userId = user?.id ?: return
 
     var showAddDialog by remember { mutableStateOf(false) }
-    var selectedPeriod by remember { mutableStateOf(PeriodFilter.ALL) }
-    var selectedType by remember { mutableStateOf(TypeFilter.ALL) }
 
-    // Date range states
+    // Initialize preset categories
+    LaunchedEffect(userId) {
+        initializePresetCategories(categoryViewModel, userId)
+    }
+
+    // Get today's date for filtering
     val calendar = Calendar.getInstance()
-    val startDate = remember { mutableStateOf(Date()) }
-    val endDate = remember { mutableStateOf(Date()) }
+    calendar.set(Calendar.HOUR_OF_DAY, 0)
+    calendar.set(Calendar.MINUTE, 0)
+    calendar.set(Calendar.SECOND, 0)
+    val startOfDay = calendar.time
+    calendar.set(Calendar.HOUR_OF_DAY, 23)
+    calendar.set(Calendar.MINUTE, 59)
+    calendar.set(Calendar.SECOND, 59)
+    val endOfDay = calendar.time
 
-    // Set default date range based on selected period
-    LaunchedEffect(selectedPeriod) {
-        when (selectedPeriod) {
-            PeriodFilter.TODAY -> {
-                calendar.time = Date()
-                calendar.set(Calendar.HOUR_OF_DAY, 0)
-                calendar.set(Calendar.MINUTE, 0)
-                calendar.set(Calendar.SECOND, 0)
-                startDate.value = calendar.time
-                calendar.set(Calendar.HOUR_OF_DAY, 23)
-                calendar.set(Calendar.MINUTE, 59)
-                calendar.set(Calendar.SECOND, 59)
-                endDate.value = calendar.time
-            }
-            PeriodFilter.THIS_WEEK -> {
-                calendar.time = Date()
-                calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-                startDate.value = calendar.time
-                calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                calendar.add(Calendar.DAY_OF_YEAR, -1)
-                endDate.value = calendar.time
-            }
-            PeriodFilter.THIS_MONTH -> {
-                calendar.time = Date()
-                calendar.set(Calendar.DAY_OF_MONTH, 1)
-                startDate.value = calendar.time
-                calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
-                endDate.value = calendar.time
-            }
-            PeriodFilter.ALL -> {
-                calendar.set(2020, 0, 1) // Far past date
-                startDate.value = calendar.time
-                endDate.value = Date() // Current date
-            }
-        }
-    }
-
-    // Get filtered transactions
-    val transactions by when {
-        selectedPeriod != PeriodFilter.ALL -> {
-            transactionViewModel.getTransactionsByPeriod(userId, startDate.value, endDate.value)
-        }
-        else -> {
-            transactionViewModel.getAllTransactions(userId)
-        }
-    }.collectAsState(initial = emptyList())
-
-    // Filter by type
-    val filteredTransactions = when (selectedType) {
-        TypeFilter.INCOME -> transactions.filter { it.type == TransactionType.INCOME }
-        TypeFilter.EXPENSE -> transactions.filter { it.type == TransactionType.EXPENSE }
-        TypeFilter.ALL -> transactions
-    }
-
+    val transactions by transactionViewModel.getTransactionsByPeriod(userId, startOfDay, endOfDay)
+        .collectAsState(initial = emptyList())
     val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
 
-    Column(
+    // Calculate spending data
+    val totalSpent = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+    val spendingLimit = 5000.0
+    val spendingPercentage = (totalSpent / spendingLimit).coerceAtMost(1.0).toFloat()
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(DeepSpaceBase, Indigo, PlumDeep)
+                )
+            )
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        StarryBackground()
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
         ) {
-            Text(
-                text = "Transactions",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                modifier = Modifier.size(56.dp)
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                IconButton(onClick = { navController.navigateUp() }) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Ivory
+                    )
+                }
+                Text(
+                    text = "SPENDING",
+                    color = Ivory,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = SpaceMonoFont
+                )
+                Box(modifier = Modifier.size(24.dp))
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
-        // Filters
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Period Filter
-            FilterChip(
-                onClick = {
-                    selectedPeriod = when (selectedPeriod) {
-                        PeriodFilter.ALL -> PeriodFilter.TODAY
-                        PeriodFilter.TODAY -> PeriodFilter.THIS_WEEK
-                        PeriodFilter.THIS_WEEK -> PeriodFilter.THIS_MONTH
-                        PeriodFilter.THIS_MONTH -> PeriodFilter.ALL
-                    }
-                },
-                label = { Text(selectedPeriod.label) },
-                selected = selectedPeriod != PeriodFilter.ALL
-            )
-
-            // Type Filter
-            FilterChip(
-                onClick = {
-                    selectedType = when (selectedType) {
-                        TypeFilter.ALL -> TypeFilter.INCOME
-                        TypeFilter.INCOME -> TypeFilter.EXPENSE
-                        TypeFilter.EXPENSE -> TypeFilter.ALL
-                    }
-                },
-                label = { Text(selectedType.label) },
-                selected = selectedType != TypeFilter.ALL
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Summary Cards
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val totalIncome = filteredTransactions
-                .filter { it.type == TransactionType.INCOME }
-                .sumOf { it.amount }
-            val totalExpense = filteredTransactions
-                .filter { it.type == TransactionType.EXPENSE }
-                .sumOf { it.amount }
-
-            SummaryCard(
-                title = "Income",
-                amount = totalIncome,
-                color = Color.Green,
-                modifier = Modifier.weight(1f)
-            )
-            SummaryCard(
-                title = "Expense",
-                amount = totalExpense,
-                color = Color.Red,
-                modifier = Modifier.weight(1f)
-            )
-            SummaryCard(
-                title = "Balance",
-                amount = totalIncome - totalExpense,
-                color = if (totalIncome >= totalExpense) Color.Green else Color.Red,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Transactions List
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(filteredTransactions) { transaction ->
-                TransactionItem(
-                    transaction = transaction,
-                    category = categories.find { it.id == transaction.categoryId },
-                    onEdit = { /* TODO: Implement edit */ },
-                    onDelete = { transactionViewModel.deleteTransaction(transaction) }
+            // Circular Progress Indicator
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularSpendingIndicator(
+                    progress = spendingPercentage,
+                    totalSpent = totalSpent,
+                    spendingLimit = spendingLimit
                 )
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Day indicator
+            Card(
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                colors = CardDefaults.cardColors(containerColor = RoyalBright),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(
+                    text = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date()).uppercase(),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    color = Ivory,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    fontFamily = SpaceMonoFont
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Transactions List
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(transactions) { transaction ->
+                    TransactionCard(
+                        transaction = transaction,
+                        category = categories.find { it.id == transaction.categoryId }
+                    )
+                }
+            }
+        }
+
+        // Floating Action Button
+        FloatingActionButton(
+            onClick = { showAddDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+                .size(60.dp),
+            containerColor = Sky,
+            contentColor = Color.White
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Add Transaction",
+                modifier = Modifier.size(30.dp)
+            )
         }
     }
 
-    // Add Transaction Dialog
+    // Navigate to Add Transaction Screen
     if (showAddDialog) {
-        AddTransactionDialog(
-            categories = categories,
-            onDismiss = { showAddDialog = false },
-            onConfirm = { transaction ->
-                transactionViewModel.addTransaction(transaction.copy(userId = userId))
-                showAddDialog = false
-            }
-        )
+        LaunchedEffect(Unit) {
+            navController.navigate("add_transaction")
+            showAddDialog = false
+        }
     }
 }
 
 @Composable
-fun SummaryCard(
-    title: String,
-    amount: Double,
-    color: Color,
-    modifier: Modifier = Modifier
+fun CircularSpendingIndicator(
+    progress: Float,
+    totalSpent: Double,
+    spendingLimit: Double
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 1000),
+        label = "progress"
+    )
+
+    Box(
+        modifier = Modifier.size(160.dp),
+        contentAlignment = Alignment.Center
     ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 12.dp.toPx()
+            val radius = (size.minDimension - strokeWidth) / 2
+            val center = center
+
+            // Background circle
+            drawCircle(
+                color = Color.White.copy(alpha = 0.1f),
+                radius = radius,
+                center = center,
+                style = Stroke(width = strokeWidth)
+            )
+
+            // Progress arc
+            val sweepAngle = 360f * animatedProgress
+            val startAngle = -90f
+
+            drawArc(
+                brush = Brush.sweepGradient(
+                    colors = listOf(Orange, Amber, Ember, Rose),
+                    center = center
+                ),
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = false,
+                style = Stroke(
+                    width = strokeWidth,
+                    cap = StrokeCap.Round
+                )
+            )
+
+            // Decorative dots
+            repeat(8) { index ->
+                val angle = (index * 45f) * (Math.PI / 180f)
+                val dotRadius = radius + strokeWidth + 10.dp.toPx()
+                val dotX = center.x + cos(angle).toFloat() * dotRadius
+                val dotY = center.y + sin(angle).toFloat() * dotRadius
+
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.3f),
+                    radius = 3.dp.toPx(),
+                    center = Offset(dotX, dotY)
+                )
+            }
+        }
+
+        // Center text
         Column(
-            modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = title,
-                fontSize = 12.sp,
-                color = Color.Gray
+                text = "R${String.format("%.0f", totalSpent)}",
+                color = Ivory,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = SpaceMonoFont
             )
             Text(
-                text = "R${String.format("%.2f", amount)}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = color
+                text = "of R${String.format("%.0f", spendingLimit)}",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                fontFamily = SpaceMonoFont
             )
         }
     }
 }
 
 @Composable
-fun TransactionItem(
+fun TransactionCard(
     transaction: Transaction,
-    category: Category?,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    category: Category?
 ) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(70.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Black.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(15.dp)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Category Icon
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = getCategoryColor(category?.name ?: ""),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = getCategoryIcon(category?.name ?: ""),
+                    contentDescription = category?.name,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Transaction Details
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = transaction.name,
+                    text = transaction.name.uppercase(),
+                    color = Ivory,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White
-                )
-                Text(
-                    text = category?.name ?: "Unknown Category",
-                    fontSize = 12.sp,
-                    color = Color.Gray
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = SpaceMonoFont
                 )
                 Text(
                     text = dateFormat.format(transaction.date),
+                    color = Color.White.copy(alpha = 0.7f),
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    fontFamily = SpaceMonoFont
                 )
-                if (!transaction.note.isNullOrBlank()) {
-                    Text(
-                        text = transaction.note,
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                }
             }
 
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}R${String.format("%.2f", transaction.amount)}",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (transaction.type == TransactionType.INCOME) Color.Green else Color.Red
-                )
-
-                // Show image indicator if present
-                if (!transaction.imagePath.isNullOrBlank()) {
-                    Icon(
-                        Icons.Default.Image,
-                        contentDescription = "Has attachment",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-
-                Row {
-                    IconButton(
-                        onClick = onEdit,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Edit",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = Color.Red,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
+            // Amount
+            Text(
+                text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${String.format("%.0f", transaction.amount)}",
+                color = if (transaction.type == TransactionType.INCOME) Leaf else Rose,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = SpaceMonoFont
+            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// Helper functions for category colors and icons
 @Composable
-fun AddTransactionDialog(
-    categories: List<Category>,
-    onDismiss: () -> Unit,
-    onConfirm: (Transaction) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<Category?>(null) }
-    var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
-    var note by remember { mutableStateOf("") }
-    var selectedDate by remember { mutableStateOf(Date()) }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var expandedCategory by remember { mutableStateOf(false) }
-
-    val context = LocalContext.current
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            imageUri = result.data?.data
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Transaction") },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Transaction Type Toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        onClick = { selectedType = TransactionType.INCOME },
-                        label = { Text("Income") },
-                        selected = selectedType == TransactionType.INCOME,
-                        modifier = Modifier.weight(1f)
-                    )
-                    FilterChip(
-                        onClick = { selectedType = TransactionType.EXPENSE },
-                        label = { Text("Expense") },
-                        selected = selectedType == TransactionType.EXPENSE,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Name Field
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Amount Field
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Category Dropdown
-                ExposedDropdownMenuBox(
-                    expanded = expandedCategory,
-                    onExpandedChange = { expandedCategory = !expandedCategory }
-                ) {
-                    OutlinedTextField(
-                        value = selectedCategory?.name ?: "Select Category",
-                        onValueChange = { },
-                        readOnly = true,
-                        label = { Text("Category") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedCategory,
-                        onDismissRequest = { expandedCategory = false }
-                    ) {
-                        categories.forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(category.name) },
-                                onClick = {
-                                    selectedCategory = category
-                                    expandedCategory = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Date Field
-                OutlinedTextField(
-                    value = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(selectedDate),
-                    onValueChange = { },
-                    label = { Text("Date") },
-                    readOnly = true,
-                    trailingIcon = {
-                        IconButton(onClick = { showDatePicker = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Select Date")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Note Field
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Note (Optional)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Image Attachment
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Attach Image:")
-                    IconButton(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                            imagePickerLauncher.launch(intent)
-                        }
-                    ) {
-                        Icon(Icons.Default.AttachFile, contentDescription = "Attach Image")
-                    }
-                }
-
-                // Show selected image
-                imageUri?.let { uri ->
-                    AsyncImage(
-                        model = uri,
-                        contentDescription = "Selected image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (name.isNotBlank() && amount.isNotBlank() && selectedCategory != null) {
-                        onConfirm(
-                            Transaction(
-                                userId = 0, // Will be set in the screen
-                                categoryId = selectedCategory!!.id,
-                                name = name,
-                                amount = amount.toDoubleOrNull() ?: 0.0,
-                                date = selectedDate,
-                                note = note.ifBlank { null },
-                                type = selectedType,
-                                imagePath = imageUri?.toString()
-                            )
-                        )
-                    }
-                }
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-
-    // Date Picker (you'll need to implement this based on your preferred date picker library)
-    if (showDatePicker) {
-        // TODO: Implement date picker dialog
-        // For now, we'll just close it
-        showDatePicker = false
+fun getCategoryColor(categoryName: String): Color {
+    return when (categoryName.lowercase()) {
+        "food" -> Ocean
+        "fuel" -> LeafDark
+        "entertainment" -> Magenta
+        "other" -> RoyalBright
+        else -> RoyalBright
     }
 }
 
-enum class PeriodFilter(val label: String) {
-    ALL("All Time"),
-    TODAY("Today"),
-    THIS_WEEK("This Week"),
-    THIS_MONTH("This Month")
+@Composable
+fun getCategoryIcon(categoryName: String): ImageVector {
+    return when (categoryName.lowercase()) {
+        "food" -> Icons.Default.Restaurant
+        "fuel" -> Icons.Default.LocalGasStation
+        "entertainment" -> Icons.Default.Movie
+        "other" -> Icons.Default.Category
+        else -> Icons.Default.Category
+    }
 }
 
-enum class TypeFilter(val label: String) {
-    ALL("All"),
-    INCOME("Income"),
-    EXPENSE("Expense")
+// Initialize preset categories
+suspend fun initializePresetCategories(categoryViewModel: CategoryViewModel, userId: Int) {
+    val presetCategories = listOf("Food", "Fuel", "Entertainment", "Other")
+
+    presetCategories.forEach { categoryName ->
+        val existingCategory = categoryViewModel.getCategoryByName(categoryName)
+        if (existingCategory == null) {
+            val category = Category(
+                id = 0,
+                userId = userId,
+                name = categoryName,
+                color = "#000000", // We'll use programmatic colors instead
+                icon = "default"
+            )
+            categoryViewModel.addCategory(category)
+        }
+    }
+}
+
+@Preview
+@Composable
+fun transactionScreenPreview()
+{
+    SolTheme { TransactionsScreen(rememberNavController(),null) }
 }
