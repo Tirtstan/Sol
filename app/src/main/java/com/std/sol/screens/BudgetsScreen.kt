@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -30,6 +29,8 @@ import com.std.sol.components.StaggeredItem // From StaggeredItem.kt
 import com.std.sol.ui.theme.Leaf
 import com.std.sol.ui.theme.Ember
 import com.std.sol.ui.theme.Ocean
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,15 +50,15 @@ fun BudgetsScreen(
 
     //data state fetching
     val currentUser by userViewModel.currentUser.collectAsState()
-    val userID = currentUser?.id ?: return //exit if user is not logged in
+    val userId = currentUser?.id ?: return //exit if user is not logged in
 
     //fetch all active budgets for user
     val transactions by transactionViewModel
-        .getAllTransactions(userID, descending = true)
+        .getAllTransactions(userId, descending = true)
         .collectAsState(initial = emptyList())
 
     val budgets by budgetViewModel
-        .getAllBudgets(userID)
+        .getAllBudgets(userId)
         .collectAsState(initial = emptyList())
 
     //calc current balance(wallet)
@@ -110,7 +111,6 @@ fun BudgetsScreen(
                 }
             }
     )
-   // Text("Budgets")
 }
 //reusable comp: current balance card
 @Composable
@@ -130,7 +130,6 @@ fun BudgetCard(currentBalance: Double){
                 Text(
                     text = "$%.2f".format(currentBalance),
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                    //use colours from Colour.kt
                     color = if (currentBalance >= 0) Leaf else Ember
                 )
             }
@@ -153,7 +152,6 @@ fun BudgetCategoryList(budgets: List<Budget>) {
         contentPadding = PaddingValues(bottom = 60.dp)
     ) {
         itemsIndexed(budgets) { index, budget ->
-            //start index from 1 to account fot budgetCard (index 0)
             StaggeredItem(index = index + 1) {
                 BudgetListItem(budget) {
                     //MUST ADD: implement edit budget screen
@@ -167,6 +165,22 @@ fun BudgetCategoryList(budgets: List<Budget>) {
 //reusable comp: Single budget item
 @Composable
 fun BudgetListItem(budget: Budget, onClick: () -> Unit) {
+    val isUnderGoal = budget.currentAmount < budget.minGoalAmount
+    val isOverGoal = budget.currentAmount > budget.maxGoalAmount
+
+    //determine status colour
+    val statusColor = when {
+        isOverGoal -> Ember //red for overspent (exceeds maxGoalAmount)
+        isUnderGoal -> Ocean //blue for under goal (below minGoalAmount)
+        else -> Leaf //green for on track
+    }
+
+    //date formatting logic
+    val dateFormat = remember { SimpleDateFormat("dd MMM, yyyy", Locale.getDefault()) }
+    val dateRange = remember(budget.startDate, budget.endDate) {
+        "${dateFormat.format(budget.startDate)} - ${dateFormat.format(budget.endDate)}"
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
@@ -187,19 +201,29 @@ fun BudgetListItem(budget: Budget, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Spent: $%.2f / Goal: $%.2f".format(budget.currentAmount, budget.goalAmount),
+                    text = "Spent: $%.2f | Goal: $%.2f - $%.2f".format(
+                        budget.currentAmount,
+                        budget.minGoalAmount, // NEW FIELD
+                        budget.maxGoalAmount  // NEW FIELD
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
+                Text(
+                    text = dateRange,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
             }
-           // Percentage spent
-            val percentage = if (budget.goalAmount > 0) (budget.currentAmount / budget.goalAmount) * 100 else 0.0
-            Text(
-                text = "${percentage.toInt()}%",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                // Change color if the budget is overspent, otherwise use Ocean color
-                color = if (budget.currentAmount > budget.goalAmount) MaterialTheme.colorScheme.error else Ocean
-            )
+           Text(
+               text = when {
+                   isOverGoal -> "OVERSPENT"
+                   isUnderGoal -> "UNDER GOAL"
+                   else -> "ON TRACK"
+               },
+               style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+               color = statusColor
+           )
         }
     }
 }
