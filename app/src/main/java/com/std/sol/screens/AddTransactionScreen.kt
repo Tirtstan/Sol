@@ -1,11 +1,16 @@
 package com.std.sol.screens
 
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,16 +19,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
 import com.std.sol.components.StarryBackground
@@ -65,6 +70,7 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
     var selectedDate by remember { mutableStateOf(Date()) }
     var showDatePicker by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
 
     val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
 
@@ -78,6 +84,15 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = selectedDate.time
     )
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            imageUri = result.data?.data
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -182,64 +197,29 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Category Selection
+            // Category Selection - FIXED DROPDOWN
             ExposedDropdownMenuBox(
                 expanded = expandedCategory,
                 onExpandedChange = { expandedCategory = !expandedCategory }
             ) {
-                Card(
+                OutlinedTextField(
+                    value = selectedCategory?.name ?: "Select Category",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Category") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp)
                         .menuAnchor()
-                        .clickable { expandedCategory = !expandedCategory },
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.Black.copy(alpha = 0.2f)
-                    ),
-                    shape = RoundedCornerShape(15.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .background(
-                                    getCategoryColor(selectedCategory?.name ?: ""),
-                                    CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = getCategoryIcon(selectedCategory?.name ?: ""),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Text(
-                            text = "Category: ${selectedCategory?.name ?: "Select Category"}",
-                            color = Ivory,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = SpaceMonoFont,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = "Dropdown",
-                            tint = Ivory
-                        )
-                    }
-                }
-
+                        .clickable { expandedCategory = true },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Ocean,
+                        unfocusedBorderColor = Ivory,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Ocean
+                    )
+                )
                 ExposedDropdownMenu(
                     expanded = expandedCategory,
                     onDismissRequest = { expandedCategory = false }
@@ -250,7 +230,7 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
-                                            .size(24.dp)
+                                            .size(20.dp)
                                             .background(
                                                 getCategoryColor(category.name),
                                                 CircleShape
@@ -275,6 +255,48 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
                         )
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Image Picker Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Attach Image (optional):",
+                    color = Ivory,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = SpaceMonoFont
+                )
+                IconButton(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                        imagePickerLauncher.launch(intent)
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.Image,
+                        contentDescription = "Pick Image",
+                        tint = Sky
+                    )
+                }
+            }
+            // Show selected image (if any)
+            imageUri?.let { uri ->
+                AsyncImage(
+                    model = uri,
+                    contentDescription = "Selected image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .padding(top = 4.dp)
+                        .background(Color.Black.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -381,7 +403,8 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
                             amount = amount.toDoubleOrNull() ?: 0.0,
                             date = selectedDate,
                             note = note.ifBlank { null },
-                            type = selectedType
+                            type = selectedType,
+                            imagePath = imageUri?.toString()
                         )
                         transactionViewModel.addTransaction(transaction)
                         navController.navigateUp()
@@ -449,10 +472,4 @@ fun TransactionTypeButton(
             )
         }
     }
-}
-@Preview
-@Composable
-fun AddTransactionScreenPreview()
-{
-    SolTheme { AddTransactionScreen(rememberNavController(),null) }
 }
