@@ -18,6 +18,14 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 
     object Login : Screen("login", "Login", Icons.Filled.Home)
     object Register : Screen("register", "Register", Icons.Filled.Home)
+
+    object AddEditBudget : Screen (
+        route = "add_edit_budget_screen/{budgetId}",
+        label = "Add/Edit Budget",
+        icon = Icons.Filled.AccountBalanceWallet
+    ) {
+        fun createRoute(budgetId: Int = 0): String = "add_edit_budget_screen/$budgetId"
+    }
 }
 
 

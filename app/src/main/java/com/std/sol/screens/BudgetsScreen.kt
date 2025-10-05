@@ -3,6 +3,7 @@ package com.std.sol.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -10,22 +11,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.std.sol.SessionManager // From SessionManager.kt
-import com.std.sol.databases.DatabaseProvider // From DatabaseProvider.kt
-import com.std.sol.entities.Budget // From Budget.kt
-import com.std.sol.entities.TransactionType // From TransactionType.kt
-import com.std.sol.viewmodels.BudgetViewModel // From BudgetViewModel.kt
-import com.std.sol.viewmodels.TransactionViewModel // From TransactionViewModel.kt
-import com.std.sol.viewmodels.UserViewModel // From UserViewModel.kt
-import com.std.sol.viewmodels.ViewModelFactory // From ViewModelFactory.kt
-import com.std.sol.components.StarryBackground // From StarryBackground.kt
-import com.std.sol.components.StaggeredItem // From StaggeredItem.kt
+import androidx.navigation.compose.rememberNavController
+import com.std.sol.SessionManager
+import com.std.sol.Screen
+import com.std.sol.components.StaggeredItem
+import com.std.sol.databases.DatabaseProvider
+import com.std.sol.entities.Budget
+import com.std.sol.ui.theme.SolTheme
+import com.std.sol.viewmodels.BudgetViewModel
+import com.std.sol.viewmodels.UserViewModel
+import com.std.sol.viewmodels.ViewModelFactory
+import kotlinx.coroutines.flow.emptyFlow
+import androidx.compose.ui.text.font.FontWeight
 import com.std.sol.ui.theme.Leaf
 import com.std.sol.ui.theme.Ember
 import com.std.sol.ui.theme.Ocean
@@ -34,57 +36,45 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BudgetsScreen(
-    @Suppress("UNUSED_PARAMETER") navController: NavController,
-    userViewModel: UserViewModel
-)
+fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel)
 {
-    //dependencies & viewModels setup
     val context = LocalContext.current
+
+    //view model initialisation
     val db = remember { DatabaseProvider.getDatabase(context) }
-
-    val factory = remember { ViewModelFactory(db, SessionManager(context)) }
-
+    val sessionManager = remember { SessionManager(context) }
+    val factory = remember { ViewModelFactory(db, sessionManager) }
     val budgetViewModel: BudgetViewModel = viewModel(factory = factory)
-    val transactionViewModel: TransactionViewModel = viewModel(factory = factory)
 
-    //data state fetching
+    //state collection
     val currentUser by userViewModel.currentUser.collectAsState()
-    val userId = currentUser?.id ?: return //exit if user is not logged in
+    val userId = currentUser?.id
 
-    //fetch all active budgets for user
-    val transactions by transactionViewModel
-        .getAllTransactions(userId, descending = true)
-        .collectAsState(initial = emptyList())
-
-    val budgets by budgetViewModel
-        .getAllBudgets(userId)
-        .collectAsState(initial = emptyList())
-
-    //calc current balance(wallet)
-    val currentBalance = transactions.sumOf{
-        when (it.type)
-        {
-           TransactionType.INCOME -> it.amount
-           TransactionType.EXPENSE -> -it.amount
-        }
+    //fetch budgets based on userId
+    val budgetsFlow = remember(userId) {
+        if (userId != null) budgetViewModel.getAllBudgets(userId) else emptyFlow()
     }
+    val budgets by budgetsFlow.collectAsState(initial = emptyList())
 
     //UI imple
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Wallet", style = MaterialTheme.typography.titleLarge)},
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                title = { Text("Budgets") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
             floatingActionButton = {
                 //plus button to add new budget accounts
-                FloatingActionButton(onClick = {
-                    //MUST ADD: define new route(to add/edit budget screen) & use navController.navigate
-                    println("Navigate to Add/Edit Budget Screen")
-                }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add New Budget")
+                FloatingActionButton(
+                    onClick = { navController.navigate(Screen.AddEditBudget.createRoute(0)) },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Budget")
                 }
             },
             content = { paddingValues ->
@@ -94,19 +84,29 @@ fun BudgetsScreen(
                         .background(MaterialTheme.colorScheme.background)
                         .padding(paddingValues)
                 ) {
-                    StarryBackground()
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal =16.dp)
-                    ) {
-                        //current balance
-                        BudgetCard(currentBalance)
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        //budget categories list
-                        BudgetCategoryList(budgets)
+                    if (userId == null) {
+                        Text(
+                            text = "Please log in to view budgets.",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else if (budgets.isEmpty()) {
+                        Text(
+                            text = "No budgets found. Tap '+' to add a new one.",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(budgets) { budget ->
+                                BudgetListItem(budget = budget, onClick = {
+                                    // Navigate to the Add/Edit screen with the existing budget's ID
+                                    navController.navigate(Screen.AddEditBudget.createRoute(budget.id))
+                                })
+                            }
+                        }
                     }
                 }
             }
