@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -22,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.std.sol.components.StarryBackground
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
@@ -36,6 +37,8 @@ import com.std.sol.SessionManager
 import com.std.sol.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+
+enum class TransactionFilterType { RECENTS, MONTH, CUSTOM }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,26 +56,43 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }
     val userId = user?.id ?: return
 
-    // DATE STATE
-    var selectedDate by remember { mutableStateOf(Date()) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    val calendar = Calendar.getInstance()
-    calendar.time = selectedDate
-    calendar.set(Calendar.HOUR_OF_DAY, 0)
-    calendar.set(Calendar.MINUTE, 0)
-    calendar.set(Calendar.SECOND, 0)
-    val startOfDay = calendar.time
-    calendar.set(Calendar.HOUR_OF_DAY, 23)
-    calendar.set(Calendar.MINUTE, 59)
-    calendar.set(Calendar.SECOND, 59)
-    val endOfDay = calendar.time
+    // Filtering state
+    var filterType by remember { mutableStateOf(TransactionFilterType.RECENTS) }
+    var customStart by remember { mutableStateOf(getStartOfDay(Date())) }
+    var customEnd by remember { mutableStateOf(getEndOfDay(Date())) }
+    var showCustomStartPicker by remember { mutableStateOf(false) }
+    var showCustomEndPicker by remember { mutableStateOf(false) }
 
-    val transactions by transactionViewModel.getTransactionsByPeriod(userId, startOfDay, endOfDay)
+    // Date range for fetching transactions
+    val now = Date()
+    val thisMonthStart = Calendar.getInstance().apply {
+        time = now
+        set(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.time
+    val thisMonthEnd = getEndOfDay(Date())
+
+    val (queryStart, queryEnd) = when (filterType) {
+        TransactionFilterType.RECENTS -> Pair(Date(0), Date(Long.MAX_VALUE)) // all for now, but will group by day
+        TransactionFilterType.MONTH -> Pair(thisMonthStart, thisMonthEnd)
+        TransactionFilterType.CUSTOM -> Pair(customStart, customEnd)
+    }
+
+    // All transactions in the period
+    val allTransactions by transactionViewModel.getTransactionsByPeriod(userId, queryStart, queryEnd)
         .collectAsState(initial = emptyList())
     val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
 
-    // TOTAL EXPENSE FOR SELECTED DATE
-    val totalSpent = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    // Group or filter transactions as needed
+    val groupedTransactions = when (filterType) {
+        TransactionFilterType.RECENTS -> groupTransactionsByDay(allTransactions)
+        TransactionFilterType.MONTH -> groupTransactionsByDay(allTransactions)
+        TransactionFilterType.CUSTOM -> mapOf("" to allTransactions.sortedByDescending { it.date })
+    }
+    val expenseSum = allTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
     // New state for adding and editing
     var showAddScreen by remember { mutableStateOf(false) }
@@ -83,7 +103,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(DeepSpaceBase, Indigo, PlumDeep)
+                    colors = listOf(Color(0xFF0c1327), Color(0xFF25315e), Color(0xFF19102e))
                 )
             )
     ) {
@@ -101,110 +121,137 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             ) {
                 Text(
                     text = "TRANSACTIONS",
-                    color = Ivory,
+                    color = Color(0xFFFFFDF0),
                     fontSize = 20.sp,
                     fontFamily = SpaceMonoFont
                 )
             }
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(30.dp))
-
-            // DATE PICKER / NAVIGATION
-            Row(
+            // Expense Circle - CENTERED
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                    .wrapContentHeight(),
+                contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = {
-                        val cal = Calendar.getInstance()
-                        cal.time = selectedDate
-                        cal.add(Calendar.DAY_OF_YEAR, -1)
-                        selectedDate = cal.time
-                    }
-                ) {
-                    Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous Day", tint = Ivory)
-                }
-                Text(
-                    text = SimpleDateFormat("EEE, dd MMM yyyy", Locale.getDefault()).format(selectedDate),
-                    modifier = Modifier
-                        .clickable { showDatePicker = true }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = Ivory,
-                    fontSize = 16.sp,
-                    fontFamily = SpaceMonoFont
+                ExpenseCircle(totalSpent = expenseSum)
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Filter Cards
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                FilterCard(
+                    selected = filterType == TransactionFilterType.RECENTS,
+                    label = "Recents",
+                    onClick = { filterType = TransactionFilterType.RECENTS },
+                    modifier = Modifier.weight(1f)
                 )
-                IconButton(
-                    onClick = {
-                        val cal = Calendar.getInstance()
-                        cal.time = selectedDate
-                        cal.add(Calendar.DAY_OF_YEAR, 1)
-                        selectedDate = cal.time
-                    }
-                ) {
-                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Day", tint = Ivory)
+                FilterCard(
+                    selected = filterType == TransactionFilterType.MONTH,
+                    label = "Month",
+                    onClick = { filterType = TransactionFilterType.MONTH },
+                    modifier = Modifier.weight(1f)
+                )
+                FilterCard(
+                    selected = filterType == TransactionFilterType.CUSTOM,
+                    label = "Custom",
+                    onClick = { filterType = TransactionFilterType.CUSTOM },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Custom date pickers
+            if (filterType == TransactionFilterType.CUSTOM) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    CustomDatePickerButton(
+                        text = "Start: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(customStart)}",
+                        onClick = { showCustomStartPicker = true }
+                    )
+                    CustomDatePickerButton(
+                        text = "End: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(customEnd)}",
+                        onClick = { showCustomEndPicker = true }
+                    )
                 }
             }
 
-            if (showDatePicker) {
-                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDate.time)
+            // Date pickers for custom filter
+            if (showCustomStartPicker) {
+                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = customStart.time)
                 DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
+                    onDismissRequest = { showCustomStartPicker = false },
                     confirmButton = {
                         TextButton(
                             onClick = {
                                 datePickerState.selectedDateMillis?.let {
-                                    selectedDate = Date(it)
+                                    customStart = getStartOfDay(Date(it))
                                 }
-                                showDatePicker = false
+                                showCustomStartPicker = false
                             }
                         ) { Text("OK") }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                        TextButton(onClick = { showCustomStartPicker = false }) { Text("Cancel") }
                     }
-                ) {
-                    DatePicker(
-                        state = datePickerState,
-                        showModeToggle = false
-                    )
-                }
+                ) { DatePicker(state = datePickerState) }
+            }
+            if (showCustomEndPicker) {
+                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = customEnd.time)
+                DatePickerDialog(
+                    onDismissRequest = { showCustomEndPicker = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                datePickerState.selectedDateMillis?.let {
+                                    customEnd = getEndOfDay(Date(it))
+                                }
+                                showCustomEndPicker = false
+                            }
+                        ) { Text("OK") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCustomEndPicker = false }) { Text("Cancel") }
+                    }
+                ) { DatePicker(state = datePickerState) }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            // EXPENSE CIRCLE (NO LIMIT, FULL CIRCLE)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                ExpenseCircle(totalSpent = totalSpent)
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Transactions List
+            // Transactions List with group headers
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                items(transactions) { transaction ->
-                    TransactionCard(
-                        transaction = transaction,
-                        category = categories.find { it.id == transaction.categoryId },
-                        onEdit = {
-                            editTransaction = transaction
-                            showAddScreen = true
+                groupedTransactions.forEach { (header, txns) ->
+                    if (header.isNotBlank()) {
+                        item {
+                            Text(
+                                text = header,
+                                color = Color(0xFFf4c047),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(vertical = 5.dp, horizontal = 2.dp)
+                            )
                         }
-                    )
+                    }
+                    items(txns) { transaction ->
+                        TransactionCard(
+                            transaction = transaction,
+                            category = categories.find { it.id == transaction.categoryId },
+                            onEdit = {
+                                editTransaction = transaction
+                                showAddScreen = true
+                            }
+                        )
+                    }
                 }
             }
         }
-
         // Floating Action Button
         FloatingActionButton(
             onClick = {
@@ -215,8 +262,8 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 .align(Alignment.BottomEnd)
                 .padding(20.dp)
                 .size(60.dp),
-            containerColor = Sky,
-            contentColor = Color.White
+            containerColor = Color(0xFFf4c047),
+            contentColor = Color(0xFF0c1327)
         ) {
             Icon(
                 Icons.Default.Add,
@@ -240,6 +287,91 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }
 }
 
+// --- Helper Composable/Functions ---
+
+@Composable
+fun FilterCard(
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .height(44.dp)
+            .padding(horizontal = 4.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) Color(0xFFf4c047) else Color(0xFF291945)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = label,
+                color = if (selected) Color(0xFF0c1327) else Color(0xFFFFFDF0),
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                fontFamily = SpaceMonoFont
+            )
+        }
+    }
+}
+
+@Composable
+fun CustomDatePickerButton(text: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF465be7),
+            contentColor = Color(0xFFFFFDF0)
+        ),
+        modifier = Modifier.height(38.dp)
+    ) {
+        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+fun groupTransactionsByDay(transactions: List<Transaction>): Map<String, List<Transaction>> {
+    val now = Calendar.getInstance()
+    val today = getStartOfDay(now.time)
+    val yesterday = getStartOfDay(Date(today.time - 24 * 60 * 60 * 1000))
+    val dateFormat = SimpleDateFormat("EEE, dd MMM", Locale.getDefault())
+    return transactions
+        .sortedByDescending { it.date }
+        .groupBy { txn ->
+            val txnDay = getStartOfDay(txn.date)
+            when (txnDay) {
+                today -> "Today"
+                yesterday -> "Yesterday"
+                else -> dateFormat.format(txnDay)
+            }
+        }
+}
+
+fun getStartOfDay(date: Date): Date {
+    val cal = Calendar.getInstance()
+    cal.time = date
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.time
+}
+
+fun getEndOfDay(date: Date): Date {
+    val cal = Calendar.getInstance()
+    cal.time = date
+    cal.set(Calendar.HOUR_OF_DAY, 23)
+    cal.set(Calendar.MINUTE, 59)
+    cal.set(Calendar.SECOND, 59)
+    cal.set(Calendar.MILLISECOND, 999)
+    return cal.time
+}
+
+// --- ExpenseCircle, TransactionCard, getCategoryColor, getCategoryIcon ---
+
 @Composable
 fun ExpenseCircle(totalSpent: Double) {
     Box(
@@ -247,17 +379,17 @@ fun ExpenseCircle(totalSpent: Double) {
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 12.dp.toPx()
+            val strokeWidth: Float = 12.dp.toPx()
             val radius = (size.minDimension - strokeWidth) / 2
             val center = center
             drawCircle(
                 brush = Brush.sweepGradient(
-                    colors = listOf(Orange, Amber, Ember, Rose, Orange),
+                    colors = listOf(Color(0xFFf4680b), Color(0xFFf4c047), Color(0xFFb42313), Color(0xFFf45d92), Color(0xFFf4680b)),
                     center = center
                 ),
                 radius = radius,
                 center = center,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
+                style = Stroke(width = strokeWidth)
             )
         }
         Column(
@@ -265,14 +397,14 @@ fun ExpenseCircle(totalSpent: Double) {
         ) {
             Text(
                 text = "R${String.format("%.2f", totalSpent)}",
-                color = Ivory,
+                color = Color(0xFFFFFDF0),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = SpaceMonoFont
             )
             Text(
                 text = "Expenses",
-                color = Color.White.copy(alpha = 0.7f),
+                color = Color(0xFFF4C047),
                 fontSize = 13.sp,
                 fontFamily = SpaceMonoFont
             )
@@ -290,17 +422,17 @@ fun TransactionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(70.dp)
+            .height(90.dp) // Give more height so time is never cut off
             .clickable { onEdit() },
         colors = CardDefaults.cardColors(
-            containerColor = Color.Black.copy(alpha = 0.3f)
+            containerColor = Color(0xFF291945)
         ),
         shape = RoundedCornerShape(15.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(vertical = 12.dp, horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -321,25 +453,28 @@ fun TransactionCard(
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = transaction.name.uppercase(),
-                    color = Ivory,
+                    color = Color(0xFFFFFDF0),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont
                 )
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = dateFormat.format(transaction.date),
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp,
+                    color = Color(0xFFF4C047),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
                     fontFamily = SpaceMonoFont
                 )
             }
             Text(
                 text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${String.format("%.2f", transaction.amount)}",
-                color = if (transaction.type == TransactionType.INCOME) Leaf else Rose,
+                color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(0xFFb42313),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = SpaceMonoFont
@@ -351,11 +486,11 @@ fun TransactionCard(
 @Composable
 fun getCategoryColor(categoryName: String): Color {
     return when (categoryName.lowercase()) {
-        "food" -> Ocean
-        "fuel" -> LeafDark
-        "entertainment" -> Magenta
-        "other" -> RoyalBright
-        else -> RoyalBright
+        "food" -> Color(0xFF118337)
+        "fuel" -> Color(0xFF280b26)
+        "entertainment" -> Color(0xFF8f1767)
+        "other" -> Color(0xFF465be7)
+        else -> Color(0xFF465be7)
     }
 }
 

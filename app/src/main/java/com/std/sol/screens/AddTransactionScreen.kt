@@ -1,6 +1,7 @@
 package com.std.sol.screens
 
 import android.app.Activity
+import android.app.TimePickerDialog
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
@@ -17,8 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +75,7 @@ fun AddTransactionScreen(
     var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
     var selectedDate by remember { mutableStateOf(transactionToEdit?.date ?: Date()) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf<Uri?>(transactionToEdit?.imagePath?.let { Uri.parse(it) }) }
 
@@ -100,12 +101,18 @@ fun AddTransactionScreen(
         }
     }
 
+    // ---- TIME PICKER ----
+    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val calendar = Calendar.getInstance().apply { time = selectedDate }
+    val hour = calendar.get(Calendar.HOUR_OF_DAY)
+    val minute = calendar.get(Calendar.MINUTE)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(DeepSpaceBase, Indigo, PlumDeep)
+                    colors = listOf(Color(0xFF0c1327), Color(0xFF25315e), Color(0xFF19102e))
                 )
             )
     ) {
@@ -126,7 +133,7 @@ fun AddTransactionScreen(
                 Spacer(modifier = Modifier.size(24.dp))
                 Text(
                     text = if (transactionToEdit == null) "NEW TRANSACTION" else "EDIT TRANSACTION",
-                    color = Ivory,
+                    color = Color(0xFFFFFDF0),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont
@@ -138,7 +145,7 @@ fun AddTransactionScreen(
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = Ivory
+                        tint = Color(0xFFFFFDF0)
                     )
                 }
             }
@@ -148,7 +155,7 @@ fun AddTransactionScreen(
             // Amount Display
             Text(
                 text = "R${if (amount.isBlank()) "0.00" else String.format("%.2f", amount.toDoubleOrNull() ?: 0.0)}",
-                color = Ivory,
+                color = Color(0xFFFFFDF0),
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = SpaceMonoFont
@@ -221,11 +228,11 @@ fun AddTransactionScreen(
                         .menuAnchor()
                         .clickable { expandedCategory = true },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Ocean,
-                        unfocusedBorderColor = Ivory,
+                        focusedBorderColor = Color(0xFF56a1bf),
+                        unfocusedBorderColor = Color(0xFFFFFDF0),
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        cursorColor = Ocean
+                        cursorColor = Color(0xFF56a1bf)
                     )
                 )
                 ExposedDropdownMenu(
@@ -275,7 +282,7 @@ fun AddTransactionScreen(
             ) {
                 Text(
                     text = "Attach Image (optional):",
-                    color = Ivory,
+                    color = Color(0xFFFFFDF0),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     fontFamily = SpaceMonoFont
@@ -289,7 +296,7 @@ fun AddTransactionScreen(
                     Icon(
                         Icons.Default.Image,
                         contentDescription = "Pick Image",
-                        tint = Sky
+                        tint = Color(0xFF56a1bf)
                     )
                 }
             }
@@ -308,14 +315,14 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Date Selection
+            // Date and Time Selection
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
                     .clickable { showDatePicker = true },
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.Black.copy(alpha = 0.2f)
+                    containerColor = Color(0xFF3a5c85)
                 ),
                 shape = RoundedCornerShape(15.dp)
             ) {
@@ -328,7 +335,7 @@ fun AddTransactionScreen(
                     Box(
                         modifier = Modifier
                             .size(30.dp)
-                            .background(Color.Gray, CircleShape),
+                            .background(Color(0xFF118337), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -341,44 +348,29 @@ fun AddTransactionScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
                         text = "Date: ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(selectedDate)}",
-                        color = Ivory,
+                        color = Color(0xFFFFFDF0),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         fontFamily = SpaceMonoFont,
                         modifier = Modifier.weight(1f)
                     )
-                    Row {
-                        IconButton(
-                            onClick = {
-                                val calendar = Calendar.getInstance()
-                                calendar.time = selectedDate
-                                calendar.add(Calendar.DAY_OF_YEAR, -1)
-                                selectedDate = calendar.time
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.KeyboardArrowLeft,
-                                contentDescription = "Previous day",
-                                tint = Color.White.copy(alpha = 0.5f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                val calendar = Calendar.getInstance()
-                                calendar.time = selectedDate
-                                calendar.add(Calendar.DAY_OF_YEAR, 1)
-                                selectedDate = calendar.time
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.KeyboardArrowRight,
-                                contentDescription = "Next day",
-                                tint = Color.White.copy(alpha = 0.5f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                    IconButton(
+                        onClick = { showTimePicker = true }
+                    ) {
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = "Pick time",
+                            tint = Color(0xFFF4C047)
+                        )
                     }
+                    Text(
+                        text = timeFormat.format(selectedDate),
+                        color = Color(0xFFF4C047),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        fontFamily = SpaceMonoFont,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
                 }
             }
 
@@ -407,9 +399,9 @@ fun AddTransactionScreen(
                             onTransactionDeleted?.invoke(transactionToEdit)
                         },
                         modifier = Modifier.weight(1f),
-                        gradientColors = listOf(Rose, Ember),
-                        shadowColor = Rose,
-                        borderColor = Ember
+                        gradientColors = listOf(Color(0xFFf45d92), Color(0xFFb42313)),
+                        shadowColor = Color(0xFFf45d92),
+                        borderColor = Color(0xFFb42313)
                     )
                 }
                 SpaceButton(
@@ -443,6 +435,7 @@ fun AddTransactionScreen(
         }
     }
 
+    // Date Picker Dialog
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -450,7 +443,11 @@ fun AddTransactionScreen(
                 TextButton(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            selectedDate = Date(millis)
+                            val cal = Calendar.getInstance()
+                            cal.time = selectedDate
+                            cal.timeInMillis = millis
+                            // preserve time of day
+                            selectedDate = cal.time
                         }
                         showDatePicker = false
                     }
@@ -467,6 +464,23 @@ fun AddTransactionScreen(
             DatePicker(state = datePickerState)
         }
     }
+
+    // Time Picker Dialog
+    if (showTimePicker) {
+        TimePickerDialog(
+            context,
+            { _, selectedHour: Int, selectedMinute: Int ->
+                val cal = Calendar.getInstance().apply { time = selectedDate }
+                cal.set(Calendar.HOUR_OF_DAY, selectedHour)
+                cal.set(Calendar.MINUTE, selectedMinute)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                selectedDate = cal.time
+                showTimePicker = false
+            },
+            hour, minute, true
+        ).apply { show() }
+    }
 }
 
 @Composable
@@ -481,7 +495,7 @@ fun TransactionTypeButton(
             .height(40.dp)
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) RoyalBright else Color.White.copy(alpha = 0.1f)
+            containerColor = if (isSelected) Color(0xFF465be7) else Color.White.copy(alpha = 0.1f)
         ),
         shape = RoundedCornerShape(20.dp)
     ) {

@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.geometry)
     implementation(libs.coil.compose.v240)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.compose.foundation.layout)
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.junit)
