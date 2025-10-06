@@ -100,8 +100,15 @@ fun App(userViewModel: UserViewModel) {
     )
     val showBottomBar = currentRoute in mainScreens
 
+    //determine correct start destination
+    val startDestination = if (currentUser != null) {
+        Screen.Dashboard.route
+    } else {
+        Screen.Register.route
+    }
     // This effect will run once when App is first composed.
     // It will navigate to the correct initial screen.
+    /*
     LaunchedEffect(Unit) {
         if (currentUser != null) {
             navController.navigate(Screen.Dashboard.route) {
@@ -109,6 +116,7 @@ fun App(userViewModel: UserViewModel) {
             }
         }
     }
+     */
 
     Scaffold(
         bottomBar = {
@@ -122,7 +130,8 @@ fun App(userViewModel: UserViewModel) {
         AppNavHost(
             navController = navController,
             userViewModel = userViewModel,
-            startDestination = Screen.Register.route,
+            //startDestination = Screen.Register.route,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         )
     }
