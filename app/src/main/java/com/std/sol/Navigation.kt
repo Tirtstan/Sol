@@ -204,12 +204,12 @@ fun BottomNavigationBarWithFAB(
             )
         }
 
-        // Floating Action Button - moved down and icon changed to white
+        // Floating Action Button
         FloatingActionButton(
             onClick = onAddClick,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = (-16).dp) // Moved down (was -28dp, now -16dp)
+                .offset(y = (-16).dp)
                 .size(56.dp),
             containerColor = Amber,
             contentColor = Color.White, // White plus icon
@@ -222,7 +222,8 @@ fun BottomNavigationBarWithFAB(
             Icon(
                 Icons.Default.Add,
                 contentDescription = "Add",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
+                tint = Color.Black
             )
         }
     }

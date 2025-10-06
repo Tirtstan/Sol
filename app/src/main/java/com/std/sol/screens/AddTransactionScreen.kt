@@ -49,6 +49,8 @@ import com.std.sol.viewmodels.ViewModelFactory
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -206,7 +208,8 @@ fun AddTransactionScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(

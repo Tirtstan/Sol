@@ -48,6 +48,7 @@ import com.std.sol.entities.User
 import com.std.sol.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.core.net.toUri
 
 enum class TransactionFilterType { RECENTS, MONTH, WEEK, CUSTOM }
 
@@ -164,24 +165,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
     Scaffold(
         containerColor = Color.Transparent,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    editTransaction = null
-                    showAddScreen = true
-                },
-                modifier = Modifier
-                    .size(60.dp),
-                containerColor = Color(0xFFf4c047),
-                contentColor = Color(0xFF0c1327)
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Transaction",
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-        }
     ) { innerPadding ->
 
         Column(
@@ -782,7 +765,7 @@ fun TransactionCard(
                 transaction.imagePath?.let { imagePath ->
                     IconButton(
                         onClick = {
-                            onImageClick(Uri.parse(imagePath))
+                            onImageClick(imagePath.toUri())
                         },
                         modifier = Modifier.size(32.dp)
                     ) {
