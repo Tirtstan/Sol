@@ -168,7 +168,7 @@ fun App(userViewModel: UserViewModel) {
         Scaffold(
             bottomBar = {
                 if (showBottomBar) {
-                    // UPDATED: Use BottomNavigationBarWithFAB instead of BottomNavigationBar
+
                     BottomNavigationBarWithFAB(
                         navController = navController,
                         onAddClick = { showAddOptionsDialog = true }
@@ -193,7 +193,7 @@ fun App(userViewModel: UserViewModel) {
                 navController.navigate("add_transaction")
             },
             onAddCategory = {
-                // For now, navigate to add transaction (you can create AddCategoryScreen later)
+
                 navController.navigate("add_category")
             }
         )
@@ -272,7 +272,7 @@ fun AppNavHost(
             popExitTransition = { mainPopExitTransition }
         ) { MoreScreen(navController, userViewModel) }
 
-        // Add Transaction Screen
+
         composable("add_transaction") {
             AddTransactionScreen(
                 navController = navController,

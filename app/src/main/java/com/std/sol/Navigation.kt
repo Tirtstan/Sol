@@ -37,7 +37,7 @@ fun BottomNavigationBar(navController: NavController) {
                 label = {
                     Text(
                         text = item.label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller (was default ~12sp)
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     )
                 },
@@ -63,7 +63,7 @@ fun BottomNavigationBar(navController: NavController) {
     }
 }
 
-// UPDATED: Bottom Navigation with Circular Add Button (adjusted spacing and positioning)
+
 @Composable
 fun BottomNavigationBarWithFAB(
     navController: NavController,
@@ -76,22 +76,22 @@ fun BottomNavigationBarWithFAB(
     Box(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Navigation bar with adjusted spacing to accommodate the FAB
+
         NavigationBar(
             containerColor = Color.Transparent,
             contentColor = Ivory,
-            modifier = Modifier.padding(horizontal = 16.dp) // Add padding to make space for FAB
+            modifier = Modifier.padding(horizontal = 16.dp)
         ) {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
 
-            // Dashboard - normal spacing
+            // Dashboard
             NavigationBarItem(
                 icon = { Icon(items[0].icon, contentDescription = items[0].label) },
                 label = {
                     Text(
                         text = items[0].label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     )
                 },
@@ -114,13 +114,13 @@ fun BottomNavigationBarWithFAB(
                 )
             )
 
-            // Transactions - wider spacing for FAB
+            // Transactions
             NavigationBarItem(
                 icon = { Icon(items[1].icon, contentDescription = items[1].label) },
                 label = {
                     Text(
                         text = items[1].label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     )
                 },
@@ -141,16 +141,16 @@ fun BottomNavigationBarWithFAB(
                     unselectedTextColor = Ivory,
                     indicatorColor = Color.Transparent
                 ),
-                modifier = Modifier.padding(end = 20.dp) // Extra space for FAB
+                modifier = Modifier.padding(end = 20.dp)
             )
 
-            // Budgets - wider spacing for FAB
+            // Budgets
             NavigationBarItem(
                 icon = { Icon(items[2].icon, contentDescription = items[2].label) },
                 label = {
                     Text(
                         text = items[2].label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     )
                 },
@@ -174,13 +174,13 @@ fun BottomNavigationBarWithFAB(
                 modifier = Modifier.padding(start = 20.dp) // Extra space for FAB
             )
 
-            // More - normal spacing
+
             NavigationBarItem(
                 icon = { Icon(items[3].icon, contentDescription = items[3].label) },
                 label = {
                     Text(
                         text = items[3].label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     )
                 },
@@ -204,15 +204,15 @@ fun BottomNavigationBarWithFAB(
             )
         }
 
-        // Floating Action Button - moved down and icon changed to white
+        // Floating Action Button
         FloatingActionButton(
             onClick = onAddClick,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = (-16).dp) // Moved down (was -28dp, now -16dp)
+                .offset(y = (-16).dp)
                 .size(56.dp),
             containerColor = Amber,
-            contentColor = Color.White, // White plus icon
+            contentColor = Color.White,
             shape = CircleShape,
             elevation = FloatingActionButtonDefaults.elevation(
                 defaultElevation = 6.dp,

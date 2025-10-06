@@ -45,11 +45,32 @@ import com.std.sol.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Enum class defining different transaction filter types
+ * RECENTS BUTTON: Shows recent transactions grouped by day
+ * MONTH BUTTON: Shows transactions from current month
+ * CUSTOM BUTTON: Shows transactions within custom date range with optional category filter
+ */
 enum class TransactionFilterType { RECENTS, MONTH, CUSTOM }
 
+/**
+ * Main Transactions Screen composable that displays user transactions with filtering options
+ *
+ * Features:
+ * - Expense circle visualization showing total spent amount
+ * - Three filter types: Recents, Month, and Custom
+ * - Category-based filtering in custom mode
+ * - Transaction list with edit functionality
+ * - Image attachment support with preview
+ * - Floating action button to add new transactions
+ *
+ * @param navController Navigation controller for screen transitions
+ * @param userViewModel ViewModel containing current user data
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsScreen(navController: NavController, userViewModel: UserViewModel?) {
+    // Get context and set up ViewModels
     val context = LocalContext.current
     val viewModelFactory = ViewModelFactory(
         DatabaseProvider.getDatabase(context),
@@ -58,27 +79,28 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     val transactionViewModel: TransactionViewModel = viewModel(factory = viewModelFactory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
 
+    // Get current user, return early if no user is logged in
     val user by userViewModel?.currentUser?.collectAsState() ?: remember {
         mutableStateOf(null)
     }
     val userId = user?.id ?: return
 
-    // Filtering state
+    // State for managing filter types and date ranges
     var filterType by remember { mutableStateOf(TransactionFilterType.RECENTS) }
     var customStart by remember { mutableStateOf(getStartOfDay(Date())) }
     var customEnd by remember { mutableStateOf(getEndOfDay(Date())) }
     var showCustomStartPicker by remember { mutableStateOf(false) }
     var showCustomEndPicker by remember { mutableStateOf(false) }
 
-    // NEW: Category filter state
+    // State for category filtering in custom mode
     var selectedCustomCategory by remember { mutableStateOf<Category?>(null) }
     var expandedCategoryDropdown by remember { mutableStateOf(false) }
 
-    // NEW: Image preview state
+    // State for image preview functionality
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var showImagePreview by remember { mutableStateOf(false) }
 
-    // Date range for fetching transactions
+    // Calculate date ranges based on filter type
     val now = Date()
     val thisMonthStart = Calendar.getInstance().apply {
         time = now
@@ -90,43 +112,47 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }.time
     val thisMonthEnd = getEndOfDay(Date())
 
+    // Determine query date range based on selected filter
     val (queryStart, queryEnd) = when (filterType) {
-        TransactionFilterType.RECENTS -> Pair(Date(0), Date(Long.MAX_VALUE)) // all for now, but will group by day
+        TransactionFilterType.RECENTS -> Pair(Date(0), Date(Long.MAX_VALUE)) // All transactions for grouping
         TransactionFilterType.MONTH -> Pair(thisMonthStart, thisMonthEnd)
         TransactionFilterType.CUSTOM -> Pair(customStart, customEnd)
     }
 
-    // All transactions in the period
+    // Fetch transactions and categories from database
     val allTransactions by transactionViewModel.getTransactionsByPeriod(userId, queryStart, queryEnd)
         .collectAsState(initial = emptyList())
     val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
 
-    // Filter transactions by category if custom filter is selected and category is chosen
+    // Apply category filter for custom mode
     val filteredTransactions = if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
         allTransactions.filter { it.categoryId == selectedCustomCategory!!.id }
     } else {
         allTransactions
     }
 
-    // Group or filter transactions as needed
+    // Group transactions by day for display
     val groupedTransactions = when (filterType) {
         TransactionFilterType.RECENTS -> groupTransactionsByDay(allTransactions)
         TransactionFilterType.MONTH -> groupTransactionsByDay(allTransactions)
         TransactionFilterType.CUSTOM -> mapOf("" to filteredTransactions.sortedByDescending { it.date })
     }
+
+    // Calculate total expenses for the circle display
     val expenseSum = filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
-    // NEW: Determine circle color based on selected category
+    // Determine circle color based on selected category
     val circleColor = if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
         getCategoryColorFromEntity(selectedCustomCategory)
     } else {
         null // Use default gradient
     }
 
-    // New state for adding and editing
+    // State for add or edit transaction functionality
     var showAddScreen by remember { mutableStateOf(false) }
     var editTransaction by remember { mutableStateOf<Transaction?>(null) }
 
+    // Main UI layout with gradient background
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -136,13 +162,15 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 )
             )
     ) {
+        // Starry background component for visual appeal to communicate outer space theme
         StarryBackground()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(20.dp)
         ) {
-            // Header (no back button)
+            // Screen header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -157,7 +185,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             }
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Expense Circle - CENTERED with dynamic color
+            // Centered expense circle with dynamic color based on category
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -172,7 +200,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Filter Cards
+            // Filter type selection cards
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -204,9 +232,9 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             }
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Custom date pickers and category selector
+            // Custom filter controls for date pickers and category selector
             if (filterType == TransactionFilterType.CUSTOM) {
-                // Date pickers row
+                // Date range selection buttons
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     CustomDatePickerButton(
                         text = "Start: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(customStart)}",
@@ -220,7 +248,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // UPDATED: Category selector dropdown with entity colors and icons
+                // Category filter dropdown with category colors and icons
                 ExposedDropdownMenuBox(
                     expanded = expandedCategoryDropdown,
                     onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }
@@ -253,7 +281,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         expanded = expandedCategoryDropdown,
                         onDismissRequest = { expandedCategoryDropdown = false }
                     ) {
-                        // "All Categories" option
+
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -283,7 +311,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                             }
                         )
 
-                        // Individual categories
+                        // Individual category options with custom colors and icons
                         categories.forEach { category ->
                             DropdownMenuItem(
                                 text = {
@@ -318,7 +346,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 }
             }
 
-            // Date pickers for custom filter
+            // Date picker dialogs for custom date range selection
             if (showCustomStartPicker) {
                 val datePickerState = rememberDatePickerState(initialSelectedDateMillis = customStart.time)
                 DatePickerDialog(
@@ -338,6 +366,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                     }
                 ) { DatePicker(state = datePickerState) }
             }
+
             if (showCustomEndPicker) {
                 val datePickerState = rememberDatePickerState(initialSelectedDateMillis = customEnd.time)
                 DatePickerDialog(
@@ -360,12 +389,13 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Transactions List with group headers
+            // Scrollable transactions list with group headers
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 groupedTransactions.forEach { (header, txns) ->
+                    // Add date group header if not empty
                     if (header.isNotBlank()) {
                         item {
                             Text(
@@ -377,6 +407,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                             )
                         }
                     }
+                    // Add transaction cards for each group
                     items(txns) { transaction ->
                         TransactionCard(
                             transaction = transaction,
@@ -394,7 +425,8 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 }
             }
         }
-        // Floating Action Button
+
+        // Floating Action Button for adding new transactions
         FloatingActionButton(
             onClick = {
                 editTransaction = null
@@ -415,7 +447,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         }
     }
 
-    // Image Preview Dialog
+    // Image preview modal dialog
     if (showImagePreview && selectedImageUri != null) {
         ImagePreviewDialog(
             imageUri = selectedImageUri!!,
@@ -426,6 +458,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         )
     }
 
+    // Add and Edit transaction screen overlay
     if (showAddScreen) {
         AddTransactionScreen(
             navController = navController,
@@ -440,7 +473,12 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }
 }
 
-// NEW: Image Preview Dialog
+/**
+ * Modal dialog for previewing transaction images in full screen
+ *
+ * @param imageUri URI of the image to display
+ * @param onDismiss Callback when dialog is dismissed
+ */
 @Composable
 fun ImagePreviewDialog(
     imageUri: Uri,
@@ -456,7 +494,7 @@ fun ImagePreviewDialog(
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Header with close button
+                // Dialog header with title and close button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -477,7 +515,7 @@ fun ImagePreviewDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Image
+                // Image display with aspect ratio preservation
                 AsyncImage(
                     model = imageUri,
                     contentDescription = "Transaction image preview",
@@ -495,8 +533,16 @@ fun ImagePreviewDialog(
     }
 }
 
-// --- Helper Composable/Functions ---
+// Helper Functions
 
+/**
+ * Filter selection card component
+ *
+ * @param selected Whether this filter is currently selected
+ * @param label Display text for the filter
+ * @param onClick Callback when filter is tapped
+ * @param modifier Modifier for styling
+ */
 @Composable
 fun FilterCard(
     selected: Boolean,
@@ -526,6 +572,12 @@ fun FilterCard(
     }
 }
 
+/**
+ * Custom date picker button for date range selection
+ *
+ * @param text Display text showing current selected date
+ * @param onClick Callback when button is pressed
+ */
 @Composable
 fun CustomDatePickerButton(text: String, onClick: () -> Unit) {
     Button(
@@ -541,11 +593,18 @@ fun CustomDatePickerButton(text: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Groups transactions by day with smart labeling (Today, Yesterday, or formatted date)
+ *
+ * @param transactions List of transactions to group
+ * @return Map with date labels as keys and transaction lists as values
+ */
 fun groupTransactionsByDay(transactions: List<Transaction>): Map<String, List<Transaction>> {
     val now = Calendar.getInstance()
     val today = getStartOfDay(now.time)
     val yesterday = getStartOfDay(Date(today.time - 24 * 60 * 60 * 1000))
     val dateFormat = SimpleDateFormat("EEE, dd MMM", Locale.getDefault())
+
     return transactions
         .sortedByDescending { it.date }
         .groupBy { txn ->
@@ -558,6 +617,12 @@ fun groupTransactionsByDay(transactions: List<Transaction>): Map<String, List<Tr
         }
 }
 
+/**
+ * Utility function to get start of day (00:00:00) for a given date
+ *
+ * @param date Input date
+ * @return Date set to start of day
+ */
 fun getStartOfDay(date: Date): Date {
     val cal = Calendar.getInstance()
     cal.time = date
@@ -568,6 +633,12 @@ fun getStartOfDay(date: Date): Date {
     return cal.time
 }
 
+/**
+ * Utility function to get end of day (23:59:59.999) for a given date
+ *
+ * @param date Input date
+ * @return Date set to end of day
+ */
 fun getEndOfDay(date: Date): Date {
     val cal = Calendar.getInstance()
     cal.time = date
@@ -578,12 +649,16 @@ fun getEndOfDay(date: Date): Date {
     return cal.time
 }
 
-// --- ExpenseCircle, TransactionCard ---
-
+/**
+ * Circular expense visualization component
+ *
+ * @param totalSpent Total amount spent to display in center
+ * @param categoryColor Optional category color for the circle border
+ */
 @Composable
 fun ExpenseCircle(
     totalSpent: Double,
-    categoryColor: Color? = null // NEW: Optional category color parameter
+    categoryColor: Color? = null // Optional category color parameter
 ) {
     Box(
         modifier = Modifier.size(160.dp),
@@ -614,6 +689,8 @@ fun ExpenseCircle(
                 )
             }
         }
+
+        // Center text showing expense amount and label
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -634,14 +711,23 @@ fun ExpenseCircle(
     }
 }
 
+/**
+ * Individual transaction card component
+ *
+ * @param transaction Transaction data to display
+ * @param category Category associated with the transaction
+ * @param onEdit Callback when transaction is tapped for editing
+ * @param onImageClick Callback when image icon is tapped
+ */
 @Composable
 fun TransactionCard(
     transaction: Transaction,
     category: Category?,
     onEdit: () -> Unit,
-    onImageClick: (Uri) -> Unit = {} // NEW: Callback for image click
+    onImageClick: (Uri) -> Unit = {} // Callback for image click
 ) {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -657,11 +743,12 @@ fun TransactionCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Main transaction info row
+            // Main transaction information row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Category icon with colored background
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -678,7 +765,10 @@ fun TransactionCard(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+
                 Spacer(modifier = Modifier.width(16.dp))
+
+                // Transaction name and time
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center
@@ -700,7 +790,7 @@ fun TransactionCard(
                     )
                 }
 
-                // NEW: Image icon if image exists
+                // Image icon if transaction has attached image
                 transaction.imagePath?.let { imagePath ->
                     IconButton(
                         onClick = {
@@ -718,6 +808,7 @@ fun TransactionCard(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
 
+                // Transaction amount with income/expense color coding
                 Text(
                     text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${String.format("%.2f", transaction.amount)}",
                     color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(0xFFb42313),
@@ -727,7 +818,7 @@ fun TransactionCard(
                 )
             }
 
-            // Display note if available
+            // Display transaction note if available
             transaction.note?.let { note ->
                 if (note.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))

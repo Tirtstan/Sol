@@ -49,6 +49,16 @@ import com.std.sol.SessionManager
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Composable function that displays the Add/Edit Transaction screen
+ * This screen allows users to create new transactions or edit existing ones
+ *
+ * @param navController Navigation controller for screen navigation
+ * @param userViewModel ViewModel for user-related operations
+ * @param transactionToEdit Optional transaction to edit (null for new transaction)
+ * @param onTransactionDeleted Callback when transaction is deleted
+ * @param onClose Callback when screen is closed
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
@@ -58,6 +68,7 @@ fun AddTransactionScreen(
     onTransactionDeleted: ((Transaction) -> Unit)? = null,
     onClose: (() -> Unit)? = null
 ) {
+    // Get current context and initialize ViewModels
     val context = LocalContext.current
     val viewModelFactory = ViewModelFactory(
         DatabaseProvider.getDatabase(context),
@@ -66,37 +77,61 @@ fun AddTransactionScreen(
     val transactionViewModel: TransactionViewModel = viewModel(factory = viewModelFactory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
 
+    // Get current user from userViewModel or provide default
     val user: User? by userViewModel?.currentUser?.collectAsState() ?: remember {
         mutableStateOf(User(id = -1, username = "John Doe", passwordHash = ""))
     }
     val userId = user?.id ?: return
 
-    // STATE (pre-filled in edit mode)
+    // Pre-filled with existing transaction data if in edit mode
+
+    // Transaction amount
     var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
+
+    // Transaction name/description
     var transactionName by remember { mutableStateOf(transactionToEdit?.name ?: "") }
+
+    // Transaction type
     var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: TransactionType.EXPENSE) }
+
+    // Selected category for the transaction
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
+
+    // Optional note for the transaction
     var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
+
+    // Date and time for the transaction
     var selectedDate by remember { mutableStateOf(transactionToEdit?.date ?: Date()) }
+
+    // UI state for date or time pickers
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+
+    // Category dropdown state
     var expandedCategory by remember { mutableStateOf(false) }
+
+    // Image attachment
     var imageUri by remember { mutableStateOf<Uri?>(transactionToEdit?.imagePath?.let { Uri.parse(it) }) }
 
+    // Get all categories for the current user
     val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
 
-    // Set default category or one corresponding to edit transaction
+    // Set default category when categories are loaded
+    // In edit mode, find the category that matches the transaction's categoryId
     LaunchedEffect(categories, transactionToEdit) {
         if (selectedCategory == null && categories.isNotEmpty()) {
-            selectedCategory = transactionToEdit?.let { t -> categories.find { it.id == t.categoryId } } ?: categories.first()
+            selectedCategory = transactionToEdit?.let { t ->
+                categories.find { it.id == t.categoryId }
+            } ?: categories.first()
         }
     }
 
+    // Date picker state initialization
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = selectedDate.time
     )
 
-    // Image picker launcher
+    // Image picker launcher which handles results from image selection
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -105,31 +140,34 @@ fun AddTransactionScreen(
         }
     }
 
-    // ---- TIME PICKER ----
+    // Time picker
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val calendar = Calendar.getInstance().apply { time = selectedDate }
     val hour = calendar.get(Calendar.HOUR_OF_DAY)
     val minute = calendar.get(Calendar.MINUTE)
 
-    // SCROLL STATE - Added for scrolling functionality
+    // Scroll state for the main content area
     val scrollState = rememberScrollState()
 
+    // The main layout
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
+                // Gradient background matching the app's space theme
                 brush = Brush.verticalGradient(
                     colors = listOf(Color(0xFF0c1327), Color(0xFF25315e), Color(0xFF19102e))
                 )
             )
     ) {
+        // Starry background component for visual appeal that pushes idea of outer space theme
         StarryBackground()
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Fixed Header (outside of scroll)
+
+            // Header remains at top while content scrolls
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -137,7 +175,7 @@ fun AddTransactionScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Spacer(modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.size(24.dp)) // Balance for close button
                 Text(
                     text = if (transactionToEdit == null) "NEW TRANSACTION" else "EDIT TRANSACTION",
                     color = Color(0xFFFFFDF0),
@@ -145,6 +183,7 @@ fun AddTransactionScreen(
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont
                 )
+                // Close button
                 IconButton(onClick = {
                     if (onClose != null) onClose()
                     else navController.navigateUp()
@@ -157,18 +196,19 @@ fun AddTransactionScreen(
                 }
             }
 
-            // Scrollable Content
+            // Makes content scrollable
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(scrollState) // Added scrolling here
+                    .verticalScroll(scrollState) // Enables scrolling for long content
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp), // Added bottom padding for save button space
+                    .padding(bottom = 24.dp), // Extra padding for save button accessibility
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Amount Display
+
+                // Prominent display of the transaction amount
                 Text(
                     text = "R${if (amount.isBlank()) "0.00" else String.format("%.2f", amount.toDoubleOrNull() ?: 0.0)}",
                     color = Color(0xFFFFFDF0),
@@ -179,7 +219,8 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Transaction Type Buttons
+                // Selecting Transaction Type
+                // Toggle buttons for EXPENSE vs INCOME
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -200,10 +241,12 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Amount Input
+                // Amount Input Field
+                // Validates decimal input with regex pattern
                 SpaceTextField(
                     value = amount,
                     onValueChange = { newValue ->
+                        // Regex ensures valid decimal format (e.g., 123.45)
                         val regex = Regex("^\\d*\\.?\\d{0,2}$")
                         if (newValue.isEmpty() || regex.matches(newValue)) {
                             amount = newValue
@@ -217,7 +260,7 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Transaction Name
+                // Transaction Name Input
                 SpaceTextField(
                     value = transactionName,
                     onValueChange = { transactionName = it },
@@ -228,7 +271,9 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Category Selection - UPDATED to use entity colors and icons
+                // Category Selection Dropdown
+
+                // Shows category color and icon
                 ExposedDropdownMenuBox(
                     expanded = expandedCategory,
                     onExpandedChange = { expandedCategory = !expandedCategory }
@@ -251,6 +296,7 @@ fun AddTransactionScreen(
                             cursorColor = Color(0xFF56a1bf)
                         )
                     )
+                    // Dropdown menu with category options
                     ExposedDropdownMenu(
                         expanded = expandedCategory,
                         onDismissRequest = { expandedCategory = false }
@@ -259,6 +305,7 @@ fun AddTransactionScreen(
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                        // Category color indicator
                                         Box(
                                             modifier = Modifier
                                                 .size(20.dp)
@@ -268,6 +315,7 @@ fun AddTransactionScreen(
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
+                                            // Category icon
                                             Icon(
                                                 imageVector = getCategoryIconFromEntity(category),
                                                 contentDescription = null,
@@ -290,7 +338,7 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Image Picker Row
+                // Image Attachment
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -306,7 +354,7 @@ fun AddTransactionScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Remove image button (if image is selected)
+                        // Remove image button which is only shown if image is selected
                         if (imageUri != null) {
                             IconButton(
                                 onClick = { imageUri = null }
@@ -318,6 +366,7 @@ fun AddTransactionScreen(
                                 )
                             }
                         }
+                        // Add image button which launches image picker
                         IconButton(
                             onClick = {
                                 val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
@@ -333,7 +382,7 @@ fun AddTransactionScreen(
                     }
                 }
 
-                // Display selected image
+                // Display selected image preview
                 imageUri?.let { uri ->
                     Spacer(modifier = Modifier.height(8.dp))
                     AsyncImage(
@@ -349,12 +398,13 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Date and Time Selection
+                // Selecting Date and Time
+                // Combined date and time picker in a single card
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp)
-                        .clickable { showDatePicker = true },
+                        .clickable { showDatePicker = true }, // Click to open date picker
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0xFF3a5c85)
                     ),
@@ -366,6 +416,7 @@ fun AddTransactionScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Date icon
                         Box(
                             modifier = Modifier
                                 .size(30.dp)
@@ -380,6 +431,7 @@ fun AddTransactionScreen(
                             )
                         }
                         Spacer(modifier = Modifier.width(16.dp))
+                        // Formatted date display
                         Text(
                             text = "Date: ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(selectedDate)}",
                             color = Color(0xFFFFFDF0),
@@ -388,6 +440,7 @@ fun AddTransactionScreen(
                             fontFamily = SpaceMonoFont,
                             modifier = Modifier.weight(1f)
                         )
+                        // Time picker button
                         IconButton(
                             onClick = { showTimePicker = true }
                         ) {
@@ -397,6 +450,7 @@ fun AddTransactionScreen(
                                 tint = Color(0xFFF4C047)
                             )
                         }
+                        // Current time display
                         Text(
                             text = timeFormat.format(selectedDate),
                             color = Color(0xFFF4C047),
@@ -410,7 +464,8 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Note Field
+                // Note Input Field
+                // Optional note field for additional transaction details
                 SpaceTextField(
                     value = note,
                     onValueChange = { note = it },
@@ -421,11 +476,12 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Save & Delete Buttons
+                // Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Delete button which is only shown in edit mode
                     if (transactionToEdit != null) {
                         SpaceButton(
                             text = "DELETE",
@@ -438,10 +494,13 @@ fun AddTransactionScreen(
                             borderColor = Color(0xFFb42313)
                         )
                     }
+                    // Save/Update button
                     SpaceButton(
                         text = if (transactionToEdit == null) "SAVE" else "UPDATE",
                         onClick = {
+                            // Validate required fields before saving
                             if (amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null) {
+                                // Create transaction object with current form data
                                 val transaction = Transaction(
                                     id = transactionToEdit?.id ?: 0,
                                     userId = userId,
@@ -453,15 +512,18 @@ fun AddTransactionScreen(
                                     type = selectedType,
                                     imagePath = imageUri?.toString()
                                 )
+                                // Save or update transaction based on mode
                                 if (transactionToEdit == null) {
                                     transactionViewModel.addTransaction(transaction)
                                 } else {
                                     transactionViewModel.updateTransaction(transaction)
                                 }
+                                // Close screen after successful save
                                 if (onClose != null) onClose()
                                 else navController.navigateUp()
                             }
                         },
+                        // Enable button only when required fields are filled
                         enabled = amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null,
                         modifier = Modifier.weight(1f)
                     )
@@ -484,7 +546,7 @@ fun AddTransactionScreen(
                             val cal = Calendar.getInstance()
                             cal.time = selectedDate
                             cal.timeInMillis = millis
-                            // preserve time of day
+                            // Preserve existing time when updating date
                             selectedDate = cal.time
                         }
                         showDatePicker = false
@@ -508,6 +570,7 @@ fun AddTransactionScreen(
         TimePickerDialog(
             context,
             { _, selectedHour: Int, selectedMinute: Int ->
+                // Update time while preserving date
                 val cal = Calendar.getInstance().apply { time = selectedDate }
                 cal.set(Calendar.HOUR_OF_DAY, selectedHour)
                 cal.set(Calendar.MINUTE, selectedMinute)
@@ -516,11 +579,20 @@ fun AddTransactionScreen(
                 selectedDate = cal.time
                 showTimePicker = false
             },
-            hour, minute, true
+            hour, minute, true // 24-hour format
         ).apply { show() }
     }
 }
 
+/**
+ * Custom composable for transaction type selection buttons (EXPENSE/INCOME)
+ * Creates a toggleable button with visual feedback for selection state
+ *
+ * @param text Button text to display
+ * @param isSelected Whether this button is currently selected
+ * @param onClick Callback when button is clicked
+ * @param modifier Modifier for styling and layout
+ */
 @Composable
 fun TransactionTypeButton(
     text: String,
@@ -533,6 +605,7 @@ fun TransactionTypeButton(
             .height(40.dp)
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
+            // Different colors for selected vs unselected state
             containerColor = if (isSelected) Color(0xFF465be7) else Color.White.copy(alpha = 0.1f)
         ),
         shape = RoundedCornerShape(20.dp)
@@ -543,6 +616,7 @@ fun TransactionTypeButton(
         ) {
             Text(
                 text = text,
+                // Different text opacity for selected vs unselected state
                 color = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,

@@ -56,7 +56,7 @@ fun getFallbackCategoryIcon(categoryName: String): ImageVector {
     }
 }
 
-// Convert icon string to ImageVector (moved from AddCategoryScreen)
+// Convert icon string to ImageVector
 fun getIconFromString(iconString: String): ImageVector {
     return when (iconString) {
         "shopping_cart" -> Icons.Default.ShoppingCart
@@ -77,13 +77,12 @@ fun getIconFromString(iconString: String): ImageVector {
         "savings" -> Icons.Default.Savings
         "monetization_on" -> Icons.Default.MonetizationOn
         "business_center" -> Icons.Default.BusinessCenter
-        // Legacy icon mappings
         "movie" -> Icons.Default.Movie
         else -> Icons.Default.Category
     }
 }
 
-// Convert ImageVector to string (moved from AddCategoryScreen)
+// Convert ImageVector to string
 fun getStringFromIcon(icon: ImageVector): String {
     return when (icon) {
         Icons.Default.ShoppingCart -> "shopping_cart"
