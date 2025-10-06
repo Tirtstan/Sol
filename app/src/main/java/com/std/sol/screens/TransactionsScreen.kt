@@ -22,8 +22,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import android.net.Uri
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontStyle
 import com.std.sol.components.StarryBackground
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
@@ -66,6 +71,10 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     // NEW: Category filter state
     var selectedCustomCategory by remember { mutableStateOf<Category?>(null) }
     var expandedCategoryDropdown by remember { mutableStateOf(false) }
+
+    // NEW: Image preview state
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showImagePreview by remember { mutableStateOf(false) }
 
     // Date range for fetching transactions
     val now = Date()
@@ -373,6 +382,10 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                             onEdit = {
                                 editTransaction = transaction
                                 showAddScreen = true
+                            },
+                            onImageClick = { imageUri ->
+                                selectedImageUri = imageUri
+                                showImagePreview = true
                             }
                         )
                     }
@@ -400,6 +413,17 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         }
     }
 
+    // Image Preview Dialog
+    if (showImagePreview && selectedImageUri != null) {
+        ImagePreviewDialog(
+            imageUri = selectedImageUri!!,
+            onDismiss = {
+                showImagePreview = false
+                selectedImageUri = null
+            }
+        )
+    }
+
     if (showAddScreen) {
         AddTransactionScreen(
             navController = navController,
@@ -411,6 +435,61 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             },
             onClose = { showAddScreen = false }
         )
+    }
+}
+
+// NEW: Image Preview Dialog
+@Composable
+fun ImagePreviewDialog(
+    imageUri: Uri,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                // Header with close button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Transaction Image",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close"
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Image
+                AsyncImage(
+                    model = imageUri,
+                    contentDescription = "Transaction image preview",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .background(
+                            Color.Black.copy(alpha = 0.1f),
+                            RoundedCornerShape(12.dp)
+                        ),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
     }
 }
 
@@ -557,69 +636,108 @@ fun ExpenseCircle(
 fun TransactionCard(
     transaction: Transaction,
     category: Category?,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onImageClick: (Uri) -> Unit = {} // NEW: Callback for image click
 ) {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp) // Give more height so time is never cut off
+            .wrapContentHeight()
             .clickable { onEdit() },
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF291945)
         ),
         shape = RoundedCornerShape(15.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = 12.dp, horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        color = getCategoryColor(category?.name ?: ""),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+            // Main transaction info row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = getCategoryIcon(category?.name ?: ""),
-                    contentDescription = category?.name,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = getCategoryColor(category?.name ?: ""),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = getCategoryIcon(category?.name ?: ""),
+                        contentDescription = category?.name,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = transaction.name.uppercase(),
+                        color = Color(0xFFFFFDF0),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = SpaceMonoFont
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = dateFormat.format(transaction.date),
+                        color = Color(0xFFF4C047),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        fontFamily = SpaceMonoFont
+                    )
+                }
+
+                // NEW: Image icon if image exists
+                transaction.imagePath?.let { imagePath ->
+                    IconButton(
+                        onClick = {
+                            onImageClick(Uri.parse(imagePath))
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Image,
+                            contentDescription = "View attached image",
+                            tint = Color(0xFF56a1bf),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
                 Text(
-                    text = transaction.name.uppercase(),
-                    color = Color(0xFFFFFDF0),
+                    text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${String.format("%.2f", transaction.amount)}",
+                    color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(0xFFb42313),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = dateFormat.format(transaction.date),
-                    color = Color(0xFFF4C047),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    fontFamily = SpaceMonoFont
-                )
             }
-            Text(
-                text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${String.format("%.2f", transaction.amount)}",
-                color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(0xFFb42313),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = SpaceMonoFont
-            )
+
+            // Display note if available
+            transaction.note?.let { note ->
+                if (note.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = note,
+                        color = Color(0xFFFFFDF0).copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        fontFamily = SpaceMonoFont
+                    )
+                }
+            }
         }
     }
 }
