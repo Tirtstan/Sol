@@ -15,7 +15,7 @@ import com.std.sol.entities.User
 
 @Database(
     entities = [User::class, Transaction::class, Category::class, Budget::class],
-    version = 2,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

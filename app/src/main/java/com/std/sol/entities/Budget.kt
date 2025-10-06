@@ -40,8 +40,6 @@ data class Budget(
     val name: String,
     @SerializedName("description")
     val description: String?,
-    @SerializedName("currentAmount")
-    val currentAmount: Double,
     @SerializedName("minGoalAmount")
     val minGoalAmount: Double,
     @SerializedName("maxGoalAmount")
