@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-// Add animation imports
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -26,6 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -41,6 +43,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.std.sol.components.AddOptionsDialog
 import com.std.sol.components.StarryBackground
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.screens.AddTransactionScreen
@@ -50,7 +53,6 @@ import com.std.sol.screens.LoginScreen
 import com.std.sol.screens.MoreScreen
 import com.std.sol.screens.RegisterScreen
 import com.std.sol.screens.TransactionsScreen
-// Import the new gradient
 import com.std.sol.ui.theme.AuthGradient
 import com.std.sol.ui.theme.MoreScreenGradient
 import com.std.sol.ui.theme.SolTheme
@@ -110,6 +112,9 @@ fun App(userViewModel: UserViewModel) {
     )
     val showBottomBar = currentRoute in mainScreens
 
+    // Add options dialog state
+    var showAddOptionsDialog by remember { mutableStateOf(false) }
+
     val targetGradient = if (currentRoute in authScreens) AuthGradient else MoreScreenGradient
 
     val animatedGradientColors = List(targetGradient.size) { index ->
@@ -162,7 +167,11 @@ fun App(userViewModel: UserViewModel) {
         Scaffold(
             bottomBar = {
                 if (showBottomBar) {
-                    BottomNavigationBar(navController)
+                    // UPDATED: Use BottomNavigationBarWithFAB instead of BottomNavigationBar
+                    BottomNavigationBarWithFAB(
+                        navController = navController,
+                        onAddClick = { showAddOptionsDialog = true }
+                    )
                 }
             },
             containerColor = Color.Transparent
@@ -173,6 +182,20 @@ fun App(userViewModel: UserViewModel) {
                 modifier = Modifier.padding(innerPadding)
             )
         }
+    }
+
+    // Add Options Dialog
+    if (showAddOptionsDialog) {
+        AddOptionsDialog(
+            onDismiss = { showAddOptionsDialog = false },
+            onAddTransaction = {
+                navController.navigate("add_transaction")
+            },
+            onAddCategory = {
+                // For now, navigate to add transaction (you can create AddCategoryScreen later)
+                navController.navigate("add_category")
+            }
+        )
     }
 }
 
@@ -216,7 +239,6 @@ fun AppNavHost(
         val mainPopExitTransition =
             slideOutHorizontally(animationSpec = animationSpec1) { it } + fadeOut(animationSpec2)
 
-
         composable(
             route = Screen.Dashboard.route,
             enterTransition = { mainEnterTransition },
@@ -248,13 +270,31 @@ fun AppNavHost(
             popEnterTransition = { mainPopEnterTransition },
             popExitTransition = { mainPopExitTransition }
         ) { MoreScreen(navController, userViewModel) }
+
+        // Add Transaction Screen
+        composable("add_transaction") {
+            AddTransactionScreen(
+                navController = navController,
+                userViewModel = userViewModel,
+                onClose = { navController.navigateUp() }
+            )
+        }
+
+        // Add Category Screen (placeholder for now)
+        composable("add_category") {
+            // TODO: Create AddCategoryScreen
+            // For now, navigate to add transaction as placeholder
+            AddTransactionScreen(
+                navController = navController,
+                userViewModel = userViewModel,
+                onClose = { navController.navigateUp() }
+            )
+        }
     }
 }
-
 
 @Preview
 @Composable
 fun MainPreview() {
     SolTheme(darkTheme = true) { Main() }
 }
-
