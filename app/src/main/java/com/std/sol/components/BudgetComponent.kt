@@ -1,92 +1,140 @@
 package com.std.sol.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.std.sol.entities.Budget
-import com.std.sol.ui.theme.Ember
-import com.std.sol.ui.theme.Leaf
-import com.std.sol.ui.theme.SpaceMonoFont
-import java.text.SimpleDateFormat
-import java.util.Locale
-import androidx.compose.ui.text.font.FontWeight
+import com.std.sol.ui.theme.SolTheme
+import com.std.sol.ui.theme.DeepSpaceBase
 import com.std.sol.ui.theme.Ocean
+import java.util.Date
+import kotlin.random.Random
+
 
 @Composable
-fun BudgetListItem(budget: Budget, onClick: () -> Unit) {
-    val dateFormat: SimpleDateFormat = remember { SimpleDateFormat("dd MMM, yyyy", Locale.getDefault()) }
-    val dateRange = remember(budget.startDate, budget.endDate) {
-        "${dateFormat.format(budget.startDate)} - ${dateFormat.format(budget.endDate)}"
-    }
-
-    val progress = (budget.currentAmount / budget.maxGoalAmount).toFloat().coerceIn(0f, 1f)
-    val progressColor = when {
-        progress >= 1f -> Ember
-        progress >= 0.75f -> Ocean
-        else -> Leaf
-    }
+fun BudgetComponent(
+    budget: Budget,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {} // Optional click handler for navigating to details
+) {
+    val progress = (budget.currentAmount / budget.maxGoalAmount).coerceIn(0.0, 1.0).toFloat()
+    val progressColor = if (progress >= 1.0f) Color.Red else Ocean // Highlight if over budget
 
     Card(
-        modifier = Modifier
+        onClick = onClick,
+        modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
+            containerColor = DeepSpaceBase,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Column (
+        Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            //row 1 name and amount
-            Row (
+            // Title and Goal Amount
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = budget.name,
-                    style = MaterialTheme.typography.titleLarge.copy(fontFamily = SpaceMonoFont),
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "$${budget.currentAmount.toTwoDecimals()} / $${budget.maxGoalAmount.toTwoDecimals()}",
-                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = SpaceMonoFont),
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = "$${String.format("%.2f", budget.maxGoalAmount)} Goal",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
             }
-           //row 2: date range
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Current Amount Spent/Saved
             Text(
-                text = dateRange,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "$${String.format("%.2f", budget.currentAmount)} Spent",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            //row 3 progress bar
+            // Progress Bar
             LinearProgressIndicator(
-                progress = { progress },
+                progress = progress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
                 color = progressColor,
-                trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
-            Spacer( modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            // Progress Text (e.g., X% reached or X remaining)
             Text(
-                text = if (progress >= 1f) "Goal Exceeded!" else "${(progress * 100).toInt()}% Used",
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                color = progressColor
+                text = if (progress < 1.0f) {
+                    val remaining = budget.maxGoalAmount - budget.currentAmount
+                    "$${String.format("%.2f", remaining)} remaining"
+                } else {
+                    "Budget exceeded!"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = if (progress >= 1.0f) Color.Red.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
     }
 }
-private fun Double.toTwoDecimals(): String {
-    return  String.format(Locale.getDefault(), "%.2f", this)
+
+// Preview Composables
+@Preview(showBackground = false)
+@Composable
+fun BudgetComponentPreview_UnderBudget() {
+    SolTheme {
+        BudgetComponent(
+            budget = Budget(
+                id = 1,
+                userId = 1,
+                categoryId = 1,
+                name = "Groceries",
+                description = "Monthly food budget",
+                currentAmount = 150.0,
+                minGoalAmount = 300.0,
+                maxGoalAmount = 400.0,
+                startDate = Date(),
+                endDate = Date()
+            )
+        )
+    }
+}
+
+@Preview(showBackground = false)
+@Composable
+fun BudgetComponentPreview_OverBudget() {
+    SolTheme {
+        BudgetComponent(
+            budget = Budget(
+                id = 2,
+                userId = 1,
+                categoryId = 2,
+                name = "Dining Out",
+                description = "Weekend restaurant spending",
+                currentAmount = 150.0,
+                minGoalAmount = 300.0,
+                maxGoalAmount = 400.0,
+                startDate = Date(),
+                endDate = Date()
+            )
+        )
+    }
 }

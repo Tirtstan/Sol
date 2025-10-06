@@ -1,5 +1,6 @@
 package com.std.sol
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,10 +15,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-// import androidx.compose.foundation.layout.safeContent
-// import androidx.compose.foundation.layout.safeDrawing
-// import androidx.compose.foundation.layout.safeGestures
-// import androidx.compose.foundation.layout.waterfall
+import androidx.compose.foundation.layout.safeContent
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.safeGestures
+import androidx.compose.foundation.layout.waterfall
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -33,15 +34,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.std.sol.screens.AddEditBudgetScreen
+import com.std.sol.components.StarryBackground
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.screens.BudgetsScreen
 import com.std.sol.screens.DashboardScreen
@@ -50,20 +47,110 @@ import com.std.sol.screens.MoreScreen
 import com.std.sol.screens.RegisterScreen
 import com.std.sol.screens.TransactionsScreen
 import com.std.sol.screens.WelcomeScreen
+import com.std.sol.ui.theme.DeepSpaceBase
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
+import kotlinx.coroutines.flow.firstOrNull
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MainApp()
+            SolTheme {
+                // A surface container using the 'background' color from the theme
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = DeepSpaceBase
+                ) {
+                    AppScreen()
+                }
+            }
         }
     }
 }
+@Composable
+fun AppScreen() {
+    val context = LocalContext.current
+    val db = DatabaseProvider.getDatabase(context)
+    val sessionManager = rememberSessionManager(context)
+    val factory = ViewModelFactory(db, sessionManager)
 
+    // UserViewModel is used at the top level to manage session/login state
+    val userViewModel: UserViewModel = viewModel(factory = factory)
+    val currentUser by userViewModel.currentUser.collectAsState()
+    val isLoading by userViewModel.isLoading.collectAsState()
+
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Define the start destination based on session state
+    val startDestination = if (isLoading) {
+        // A placeholder route while loading
+        "loading"
+    } else if (currentUser == null) {
+        Screen.Welcome.route
+    } else {
+        Screen.Dashboard.route
+    }
+
+    // Effect to navigate once loading is complete
+    LaunchedEffect(isLoading, currentUser) {
+        if (!isLoading) {
+            val destination = if (currentUser == null) {
+                Screen.Welcome.route
+            } else {
+                Screen.Dashboard.route
+            }
+            // Navigate only if we are not already at the correct destination
+            if (currentRoute != destination) {
+                navController.navigate(destination) {
+                    // This clears the back stack up to the initial destination
+                    popUpTo(navController.graph.startDestinationId) {
+                        inclusive = true
+                    }
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Transparent, // Makes StarryBackground visible
+        contentWindowInsets = WindowInsets.safeDrawing,
+        bottomBar = {
+            if (currentUser != null && listOf(
+                    Screen.Dashboard.route,
+                    Screen.Transactions.route,
+                    Screen.Budgets.route,
+                    Screen.More.route
+                ).contains(currentRoute)
+            ) {
+                BottomNavigationBar(navController)
+            }
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            StarryBackground()
+
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                AppNavHost(navController, userViewModel)
+            }
+        }
+    }
+}
+/*
 @Composable
 fun MainApp() {
     SolTheme {
@@ -117,6 +204,17 @@ fun MainApp() {
     }
 }
 
+ */
+@Composable
+fun rememberSessionManager(context: Context): SessionManager {
+    // Check if we are in Android Studio Preview mode
+    val inPreview = LocalInspectionMode.current
+    return remember(context, inPreview) {
+        SessionManager(context.applicationContext)
+    }
+}
+
+/*
 @Composable
 fun AppContent(navController: NavHostController, userViewModel: UserViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -146,7 +244,7 @@ fun AppContent(navController: NavHostController, userViewModel: UserViewModel) {
         )
     }
 }
-/*
+
 @Composable
 fun App(userViewModel: UserViewModel) {
     val navController = rememberNavController()
@@ -203,21 +301,14 @@ fun App(userViewModel: UserViewModel) {
  */
 
 @Composable
-fun AppNavHost(
-    navController: NavHostController,
-    userViewModel: UserViewModel,
-    startDestination: String,
-    modifier: Modifier = Modifier
-) {
+fun AppNavHost(navController: androidx.navigation.NavHostController, userViewModel: UserViewModel) {
+    val startDestination = Screen.Welcome.route // Will be overridden by LaunchedEffect if logged in
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        modifier = modifier
+        modifier = Modifier.fillMaxSize()
     ) {
-        composable("loading_placeholder") {
-            Box(Modifier.fillMaxSize())
-        }
-
+        // Auth Screens
         composable(Screen.Welcome.route) { WelcomeScreen(navController) }
 
         composable(
@@ -261,28 +352,13 @@ fun AppNavHost(
         composable(Screen.Transactions.route) { TransactionsScreen(navController, userViewModel) }
         composable(Screen.Budgets.route) { BudgetsScreen(navController, userViewModel) }
         composable(Screen.More.route) { MoreScreen(navController, userViewModel) }
-
-        composable (
-            route = Screen.AddEditBudget.route + "/{budgetId}",
-            arguments = listOf(navArgument("budgetId") {
-                type = NavType.IntType
-                defaultValue = 0
-            }),
-            enterTransition = {
-                slideInVertically (initialOffsetY = { it }, animationSpec = tween(300))
-            },
-            exitTransition = {
-                slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300))
-            }
-        ) { backStackEntry ->
-            val budgetId = backStackEntry.arguments?.getInt("budgetId") ?: 0
-            AddEditBudgetScreen(navController, userViewModel, budgetId)
-        }
     }
 }
 
 @Preview
 @Composable
-fun MainPreview() {
-    MainApp()
+fun AppScreenPreview() {
+    SolTheme {
+        AppScreen()
+    }
 }
