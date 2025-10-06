@@ -63,6 +63,10 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     var showCustomStartPicker by remember { mutableStateOf(false) }
     var showCustomEndPicker by remember { mutableStateOf(false) }
 
+    // NEW: Category filter state
+    var selectedCustomCategory by remember { mutableStateOf<Category?>(null) }
+    var expandedCategoryDropdown by remember { mutableStateOf(false) }
+
     // Date range for fetching transactions
     val now = Date()
     val thisMonthStart = Calendar.getInstance().apply {
@@ -86,13 +90,27 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         .collectAsState(initial = emptyList())
     val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
 
+    // Filter transactions by category if custom filter is selected and category is chosen
+    val filteredTransactions = if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
+        allTransactions.filter { it.categoryId == selectedCustomCategory!!.id }
+    } else {
+        allTransactions
+    }
+
     // Group or filter transactions as needed
     val groupedTransactions = when (filterType) {
         TransactionFilterType.RECENTS -> groupTransactionsByDay(allTransactions)
         TransactionFilterType.MONTH -> groupTransactionsByDay(allTransactions)
-        TransactionFilterType.CUSTOM -> mapOf("" to allTransactions.sortedByDescending { it.date })
+        TransactionFilterType.CUSTOM -> mapOf("" to filteredTransactions.sortedByDescending { it.date })
     }
-    val expenseSum = allTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    val expenseSum = filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+
+    // NEW: Determine circle color based on selected category
+    val circleColor = if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
+        getCategoryColor(selectedCustomCategory!!.name)
+    } else {
+        null // Use default gradient
+    }
 
     // New state for adding and editing
     var showAddScreen by remember { mutableStateOf(false) }
@@ -128,14 +146,17 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             }
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Expense Circle - CENTERED
+            // Expense Circle - CENTERED with dynamic color
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight(),
                 contentAlignment = Alignment.Center
             ) {
-                ExpenseCircle(totalSpent = expenseSum)
+                ExpenseCircle(
+                    totalSpent = expenseSum,
+                    categoryColor = circleColor
+                )
             }
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -148,13 +169,19 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 FilterCard(
                     selected = filterType == TransactionFilterType.RECENTS,
                     label = "Recents",
-                    onClick = { filterType = TransactionFilterType.RECENTS },
+                    onClick = {
+                        filterType = TransactionFilterType.RECENTS
+                        selectedCustomCategory = null // Reset category filter
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 FilterCard(
                     selected = filterType == TransactionFilterType.MONTH,
                     label = "Month",
-                    onClick = { filterType = TransactionFilterType.MONTH },
+                    onClick = {
+                        filterType = TransactionFilterType.MONTH
+                        selectedCustomCategory = null // Reset category filter
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 FilterCard(
@@ -166,8 +193,9 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             }
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Custom date pickers
+            // Custom date pickers and category selector
             if (filterType == TransactionFilterType.CUSTOM) {
+                // Date pickers row
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     CustomDatePickerButton(
                         text = "Start: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(customStart)}",
@@ -177,6 +205,105 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         text = "End: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(customEnd)}",
                         onClick = { showCustomEndPicker = true }
                     )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // NEW: Category selector dropdown
+                ExposedDropdownMenuBox(
+                    expanded = expandedCategoryDropdown,
+                    onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }
+                ) {
+                    OutlinedTextField(
+                        value = selectedCustomCategory?.name ?: "All Categories",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Filter by Category", color = Color(0xFFFFFDF0)) },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(
+                                expanded = expandedCategoryDropdown
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                            .clickable { expandedCategoryDropdown = true },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF56a1bf),
+                            unfocusedBorderColor = Color(0xFFFFFDF0),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Color(0xFF56a1bf),
+                            focusedLabelColor = Color(0xFFFFFDF0),
+                            unfocusedLabelColor = Color(0xFFFFFDF0)
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategoryDropdown,
+                        onDismissRequest = { expandedCategoryDropdown = false }
+                    ) {
+                        // "All Categories" option
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .background(
+                                                Color(0xFF465be7),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Category,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("All Categories")
+                                }
+                            },
+                            onClick = {
+                                selectedCustomCategory = null
+                                expandedCategoryDropdown = false
+                            }
+                        )
+
+                        // Individual categories
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .background(
+                                                    getCategoryColor(category.name),
+                                                    CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = getCategoryIcon(category.name),
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(category.name)
+                                    }
+                                },
+                                onClick = {
+                                    selectedCustomCategory = category
+                                    expandedCategoryDropdown = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -373,7 +500,10 @@ fun getEndOfDay(date: Date): Date {
 // --- ExpenseCircle, TransactionCard, getCategoryColor, getCategoryIcon ---
 
 @Composable
-fun ExpenseCircle(totalSpent: Double) {
+fun ExpenseCircle(
+    totalSpent: Double,
+    categoryColor: Color? = null // NEW: Optional category color parameter
+) {
     Box(
         modifier = Modifier.size(160.dp),
         contentAlignment = Alignment.Center
@@ -382,15 +512,26 @@ fun ExpenseCircle(totalSpent: Double) {
             val strokeWidth: Float = 12.dp.toPx()
             val radius = (size.minDimension - strokeWidth) / 2
             val center = center
-            drawCircle(
-                brush = Brush.sweepGradient(
-                    colors = listOf(Color(0xFFf4680b), Color(0xFFf4c047), Color(0xFFb42313), Color(0xFFf45d92), Color(0xFFf4680b)),
-                    center = center
-                ),
-                radius = radius,
-                center = center,
-                style = Stroke(width = strokeWidth)
-            )
+
+            // Use category color if provided, otherwise use default gradient
+            if (categoryColor != null) {
+                drawCircle(
+                    color = categoryColor,
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = strokeWidth)
+                )
+            } else {
+                drawCircle(
+                    brush = Brush.sweepGradient(
+                        colors = listOf(Color(0xFFf4680b), Color(0xFFf4c047), Color(0xFFb42313), Color(0xFFf45d92), Color(0xFFf4680b)),
+                        center = center
+                    ),
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = strokeWidth)
+                )
+            }
         }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
