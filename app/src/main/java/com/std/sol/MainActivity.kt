@@ -1,5 +1,6 @@
 package com.std.sol
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -35,7 +37,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -49,33 +50,121 @@ import com.std.sol.screens.LoginScreen
 import com.std.sol.screens.MoreScreen
 import com.std.sol.screens.RegisterScreen
 import com.std.sol.screens.TransactionsScreen
-// Import the new gradient
-import com.std.sol.ui.theme.AuthGradient
-import com.std.sol.ui.theme.MoreScreenGradient
+import com.std.sol.screens.WelcomeScreen
+import com.std.sol.ui.theme.DeepSpaceBase
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
+import kotlinx.coroutines.flow.firstOrNull
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            Main()
+            SolTheme {
+                // A surface container using the 'background' color from the theme
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = DeepSpaceBase
+                ) {
+                    AppScreen()
+                }
+            }
         }
     }
 }
-
 @Composable
-fun Main() {
+fun AppScreen() {
+    val context = LocalContext.current
+    val db = DatabaseProvider.getDatabase(context)
+    val sessionManager = rememberSessionManager(context)
+    val factory = ViewModelFactory(db, sessionManager)
+
+    // UserViewModel is used at the top level to manage session/login state
+    val userViewModel: UserViewModel = viewModel(factory = factory)
+    val currentUser by userViewModel.currentUser.collectAsState()
+    val isLoading by userViewModel.isLoading.collectAsState()
+
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Define the start destination based on session state
+    val startDestination = if (isLoading) {
+        // A placeholder route while loading
+        "loading"
+    } else if (currentUser == null) {
+        Screen.Welcome.route
+    } else {
+        Screen.Dashboard.route
+    }
+
+    // Effect to navigate once loading is complete
+    LaunchedEffect(isLoading, currentUser) {
+        if (!isLoading) {
+            val destination = if (currentUser == null) {
+                Screen.Welcome.route
+            } else {
+                Screen.Dashboard.route
+            }
+            // Navigate only if we are not already at the correct destination
+            if (currentRoute != destination) {
+                navController.navigate(destination) {
+                    // This clears the back stack up to the initial destination
+                    popUpTo(navController.graph.startDestinationId) {
+                        inclusive = true
+                    }
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Transparent, // Makes StarryBackground visible
+        contentWindowInsets = WindowInsets.safeDrawing,
+        bottomBar = {
+            if (currentUser != null && listOf(
+                    Screen.Dashboard.route,
+                    Screen.Transactions.route,
+                    Screen.Budgets.route,
+                    Screen.More.route
+                ).contains(currentRoute)
+            ) {
+                BottomNavigationBar(navController)
+            }
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            StarryBackground()
+
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                AppNavHost(navController, userViewModel)
+            }
+        }
+    }
+}
+/*
+@Composable
+fun MainApp() {
     SolTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFF0B1426)
         ) {
             val context = LocalContext.current
-            val viewModelFactory = ViewModelFactory(
+           /* val viewModelFactory = ViewModelFactory(
                 DatabaseProvider.getDatabase(context.applicationContext),
                 SessionManager(context.applicationContext)
             )
@@ -85,9 +174,32 @@ fun Main() {
             val isLoading by userViewModel.isLoading.collectAsState()
             val currentUser by userViewModel.currentUser.collectAsState()
 
-            if (isLoading && !LocalInspectionMode.current) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+            val navController = rememberNavController()
+
+            //helper method, determine initial route once loading is complete
+            LaunchedEffect(isLoading) {
+                if(!isLoading) {
+                    val startRoute = if (currentUser != null) {
+                        Screen.Dashboard.route
+                    } else {
+                        Screen.Welcome.route
+                    }
+                    if (navController.currentDestination?.route == null) {
+                        navController.navigate(startRoute) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true}
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else {
+                    AppContent(navController, userViewModel)
                 }
             } else {
                 LaunchedEffect(currentUser) {
@@ -98,6 +210,47 @@ fun Main() {
                 App(userViewModel)
             }
         }
+    }
+}
+
+ */
+@Composable
+fun rememberSessionManager(context: Context): SessionManager {
+    // Check if we are in Android Studio Preview mode
+    val inPreview = LocalInspectionMode.current
+    return remember(context, inPreview) {
+        SessionManager(context.applicationContext)
+    }
+}
+
+/*
+@Composable
+fun AppContent(navController: NavHostController, userViewModel: UserViewModel) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val mainScreens = listOf(
+        Screen.Dashboard.route,
+        Screen.Transactions.route,
+        Screen.Budgets.route,
+        Screen.More.route
+    )
+    val showBottomBar = currentRoute in mainScreens
+
+    Scaffold (
+        bottomBar = {
+            if (showBottomBar) {
+                BottomNavigationBar(navController)
+            }
+        },
+        contentWindowInsets = WindowInsets.navigationBars
+    ) { innerPadding ->
+        AppNavHost(
+            navController = navController,
+            userViewModel = userViewModel,
+            startDestination = "loading_placeholder",
+            modifier = Modifier.padding(innerPadding)
+        )
     }
 }
 
@@ -135,6 +288,7 @@ fun App(userViewModel: UserViewModel) {
             popUpTo(navController.graph.id) { inclusive = true }
         }
     }
+     */
 
     Box(
         modifier = Modifier
@@ -183,6 +337,8 @@ fun App(userViewModel: UserViewModel) {
         }
     }
 }
+
+ */
 
 @Composable
 fun AppNavHost(
