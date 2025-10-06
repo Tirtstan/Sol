@@ -1,12 +1,12 @@
 package com.std.sol.screens
 
 import android.app.Activity
-import android.app.TimePickerDialog
 import android.content.Intent
-import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,22 +17,28 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.std.sol.SessionManager
 import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
-import com.std.sol.components.StarryBackground
+import com.std.sol.databases.DatabaseProvider
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
@@ -44,16 +50,16 @@ import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.TransactionViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
-import com.std.sol.databases.DatabaseProvider
-import com.std.sol.SessionManager
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.Modifier
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
     navController: NavController,
     userViewModel: UserViewModel?,
+    modifier: Modifier = Modifier,
     transactionToEdit: Transaction? = null,
     onTransactionDeleted: ((Transaction) -> Unit)? = null,
     onClose: (() -> Unit)? = null
@@ -74,21 +80,28 @@ fun AddTransactionScreen(
     // STATE (pre-filled in edit mode)
     var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var transactionName by remember { mutableStateOf(transactionToEdit?.name ?: "") }
-    var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: TransactionType.EXPENSE) }
+    var selectedType by remember {
+        mutableStateOf(
+            transactionToEdit?.type ?: TransactionType.EXPENSE
+        )
+    }
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
     var selectedDate by remember { mutableStateOf(transactionToEdit?.date ?: Date()) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
-    var imageUri by remember { mutableStateOf<Uri?>(transactionToEdit?.imagePath?.let { Uri.parse(it) }) }
+    var imageUri by remember { mutableStateOf(transactionToEdit?.imagePath?.toUri()) }
 
-    val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
+    val categories by categoryViewModel.getAllCategories(userId)
+        .collectAsState(initial = emptyList())
 
     // Set default category or one corresponding to edit transaction
     LaunchedEffect(categories, transactionToEdit) {
         if (selectedCategory == null && categories.isNotEmpty()) {
-            selectedCategory = transactionToEdit?.let { t -> categories.find { it.id == t.categoryId } } ?: categories.first()
+            selectedCategory =
+                transactionToEdit?.let { t -> categories.find { it.id == t.categoryId } }
+                    ?: categories.first()
         }
     }
 
@@ -105,39 +118,107 @@ fun AddTransactionScreen(
         }
     }
 
-    // ---- TIME PICKER ----
+    // ---- TIME PICKER STATE ----
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val calendar = Calendar.getInstance().apply { time = selectedDate }
-    val hour = calendar.get(Calendar.HOUR_OF_DAY)
-    val minute = calendar.get(Calendar.MINUTE)
+    val timePickerState = rememberTimePickerState(
+        initialHour = calendar.get(Calendar.HOUR_OF_DAY),
+        initialMinute = calendar.get(Calendar.MINUTE),
+        is24Hour = true
+    )
+
+    // ---- DIALOGS ----
+
+    // Date Picker Dialog
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        // Keep the time, only change the date
+                        val newDateCalendar = Calendar.getInstance().apply { timeInMillis = it }
+                        val currentCalendar = Calendar.getInstance().apply { time = selectedDate }
+                        currentCalendar.set(
+                            newDateCalendar.get(Calendar.YEAR),
+                            newDateCalendar.get(Calendar.MONTH),
+                            newDateCalendar.get(Calendar.DAY_OF_MONTH)
+                        )
+                        selectedDate = currentCalendar.time
+                    }
+                    showDatePicker = false
+                }) { Text("OK", style = TextStyle(fontFamily = InterFont)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(
+                        "Cancel",
+                        style = TextStyle(fontFamily = InterFont)
+                    )
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showTimePicker) {
+        BasicAlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            modifier = Modifier.fillMaxWidth(),
+            properties = DialogProperties(), content = {
+                Column(
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(top = 28.dp, start = 20.dp, end = 20.dp, bottom = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    TimePicker(state = timePickerState)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showTimePicker = false }) {
+                            Text(
+                                "Cancel",
+                                style = TextStyle(fontFamily = InterFont)
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                val newTimeCalendar =
+                                    Calendar.getInstance().apply { time = selectedDate }
+                                newTimeCalendar.set(Calendar.HOUR_OF_DAY, timePickerState.hour)
+                                newTimeCalendar.set(Calendar.MINUTE, timePickerState.minute)
+                                selectedDate = newTimeCalendar.time
+                                showTimePicker = false
+                            }
+                        ) { Text("OK", style = TextStyle(fontFamily = InterFont)) }
+                    }
+                }
+            })
+    }
+
 
     // SCROLL STATE - Added for scrolling functionality
     val scrollState = rememberScrollState()
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0c1327), Color(0xFF25315e), Color(0xFF19102e))
-                )
-            )
+        modifier = modifier
+            .fillMaxWidth()
     ) {
-        StarryBackground()
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            // Fixed Header (outside of scroll)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Spacer(modifier = Modifier.size(24.dp))
                 Text(
                     text = if (transactionToEdit == null) "NEW TRANSACTION" else "EDIT TRANSACTION",
                     color = Color(0xFFFFFDF0),
@@ -145,26 +226,32 @@ fun AddTransactionScreen(
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont
                 )
-                IconButton(onClick = {
-                    if (onClose != null) onClose()
-                    else navController.navigateUp()
-                }) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFFFFFDF0)
-                    )
-                }
             }
 
-            // Scrollable Content
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState) // Added scrolling here
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp), // Added bottom padding for save button space
-                horizontalAlignment = Alignment.CenterHorizontally
+            val formattedAmount = if (amount.isBlank()) "0.00" else String.format(
+                "%.2f",
+                amount.toDoubleOrNull() ?: 0.0
+            )
+            val sign = if (selectedType == TransactionType.INCOME) "+" else "-"
+            val amountColor =
+                if (selectedType == TransactionType.INCOME) Color(0xFF6BE051) else Color(
+                    0xFFE05E51
+                )
+
+            Text(
+                text = "${sign}R${formattedAmount}",
+                color = amountColor,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = SpaceMonoFont
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Transaction Type Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -215,15 +302,28 @@ fun AddTransactionScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Transaction Name
-                SpaceTextField(
-                    value = transactionName,
-                    onValueChange = { transactionName = it },
-                    label = "Transaction Name",
-                    placeholder = "Enter name",
-                    modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            ExposedDropdownMenuBox(
+                expanded = expandedCategory,
+                onExpandedChange = { expandedCategory = !expandedCategory }
+            ) {
+                val fillMaxWidth = Modifier
+                    .fillMaxWidth()
+                OutlinedTextField(
+                    value = selectedCategory?.name ?: "Select Category",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = {
+                        Text(
+                            text = "Category",
+                            style = TextStyle(fontFamily = SpaceMonoFont, color = Ivory)
+                        )
+                    },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
+                    modifier = fillMaxWidth
+                        .clickable { expandedCategory = true },
+                    textStyle = TextStyle(fontFamily = InterFont, color = Color.White)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -278,10 +378,14 @@ fun AddTransactionScreen(
                                         Spacer(modifier = Modifier.width(12.dp))
                                         Text(category.name)
                                     }
-                                },
-                                onClick = {
-                                    selectedCategory = category
-                                    expandedCategory = false
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        category.name,
+                                        style = TextStyle(
+                                            fontFamily = InterFont,
+                                            color = Color.White
+                                        )
+                                    )
                                 }
                             )
                         }
@@ -290,11 +394,25 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Image Picker Row
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+            // Image Picker Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Attach Image (optional):",
+                    color = Color(0xFFFFFDF0),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = InterFont
+                )
+                IconButton(
+                    onClick = {
+                        val intent =
+                            Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                        imagePickerLauncher.launch(intent)
+                    }
                 ) {
                     Text(
                         text = "Attach Image (optional):",
@@ -388,24 +506,38 @@ fun AddTransactionScreen(
                             fontFamily = SpaceMonoFont,
                             modifier = Modifier.weight(1f)
                         )
-                        IconButton(
-                            onClick = { showTimePicker = true }
-                        ) {
-                            Icon(
-                                Icons.Default.Schedule,
-                                contentDescription = "Pick time",
-                                tint = Color(0xFFF4C047)
-                            )
-                        }
-                        Text(
-                            text = timeFormat.format(selectedDate),
-                            color = Color(0xFFF4C047),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            fontFamily = SpaceMonoFont,
-                            modifier = Modifier.padding(start = 4.dp)
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "Date: ${
+                            SimpleDateFormat(
+                                "MMM dd, yyyy",
+                                Locale.getDefault()
+                            ).format(selectedDate)
+                        }",
+                        color = Color(0xFFFFFDF0),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = InterFont,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { showTimePicker = true }
+                    ) {
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = "Pick time",
+                            tint = Color(0xFFF4C047)
                         )
                     }
+                    Text(
+                        text = timeFormat.format(selectedDate),
+                        color = Color(0xFFF4C047),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        fontFamily = InterFont,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -472,53 +604,6 @@ fun AddTransactionScreen(
             }
         }
     }
-
-    // Date Picker Dialog
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val cal = Calendar.getInstance()
-                            cal.time = selectedDate
-                            cal.timeInMillis = millis
-                            // preserve time of day
-                            selectedDate = cal.time
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-
-    // Time Picker Dialog
-    if (showTimePicker) {
-        TimePickerDialog(
-            context,
-            { _, selectedHour: Int, selectedMinute: Int ->
-                val cal = Calendar.getInstance().apply { time = selectedDate }
-                cal.set(Calendar.HOUR_OF_DAY, selectedHour)
-                cal.set(Calendar.MINUTE, selectedMinute)
-                cal.set(Calendar.SECOND, 0)
-                cal.set(Calendar.MILLISECOND, 0)
-                selectedDate = cal.time
-                showTimePicker = false
-            },
-            hour, minute, true
-        ).apply { show() }
-    }
 }
 
 @Composable
@@ -549,5 +634,13 @@ fun TransactionTypeButton(
                 fontFamily = SpaceMonoFont
             )
         }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0C1327)
+@Composable
+fun AddTransactionScreenPreview() {
+    SolTheme {
+        AddTransactionScreen(rememberNavController(), null)
     }
 }

@@ -47,6 +47,7 @@ import com.std.sol.components.AddOptionsDialog
 import com.std.sol.components.StarryBackground
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.screens.AddCategoryScreen
+import com.std.sol.screens.AddEditBudgetScreen
 import com.std.sol.screens.AddTransactionScreen
 import com.std.sol.screens.BudgetsScreen
 import com.std.sol.screens.DashboardScreen
@@ -57,8 +58,11 @@ import com.std.sol.screens.TransactionsScreen
 import com.std.sol.ui.theme.AuthGradient
 import com.std.sol.ui.theme.MoreScreenGradient
 import com.std.sol.ui.theme.SolTheme
+import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,13 +87,21 @@ fun Main() {
                 SessionManager(context.applicationContext)
             )
             val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
+            val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
+
             val isLoading by userViewModel.isLoading.collectAsState()
+            val currentUser by userViewModel.currentUser.collectAsState()
 
             if (isLoading && !LocalInspectionMode.current) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
+                LaunchedEffect(currentUser) {
+                    currentUser?.let { user ->
+                        categoryViewModel.ensureDefaultCategories(user.id)
+                    }
+                }
                 App(userViewModel)
             }
         }
@@ -206,8 +218,8 @@ fun AppNavHost(
     userViewModel: UserViewModel,
     modifier: Modifier = Modifier
 ) {
-    val animationSpec1 = tween<IntOffset>(durationMillis = 400)
-    val animationSpec2 = tween<Float>(durationMillis = 400)
+    val animationSpec1 = tween<IntOffset>(durationMillis = 300)
+    val animationSpec2 = tween<Float>(durationMillis = 300)
 
     NavHost(
         navController = navController,
@@ -215,7 +227,9 @@ fun AppNavHost(
         modifier = modifier
     ) {
         val authEnterTransition =
-            slideInVertically(animationSpec = animationSpec1) { it } + fadeIn(animationSpec2)
+            slideInVertically(
+                animationSpec = animationSpec1
+            ) { it } + fadeIn(animationSpec2)
         val authExitTransition =
             slideOutVertically(animationSpec = animationSpec1) { it } + fadeOut(animationSpec2)
 
@@ -272,22 +286,37 @@ fun AppNavHost(
             popExitTransition = { mainPopExitTransition }
         ) { MoreScreen(navController, userViewModel) }
 
-        // Add Transaction Screen
-        composable("add_transaction") {
-            AddTransactionScreen(
-                navController = navController,
-                userViewModel = userViewModel,
-                onClose = { navController.navigateUp() }
-            )
-        }
+        composable(
+            route = Screen.AddTransactionScreen.route,
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { 300 }, animationSpec = animationSpec1
+                )
+            },
+        ) { AddTransactionScreen(navController, userViewModel) }
 
-        composable("add_category") {
+        composable(
+            route = "${Screen.AddEditBudget.route}/{userId}/{budgetId}",
+            arguments = listOf(
+                navArgument("userId") { type = NavType.IntType },
+                navArgument("budgetId") { type = NavType.IntType }),
+            enterTransition = { mainEnterTransition },
+            exitTransition = { mainExitTransition },
+            popEnterTransition = { mainPopEnterTransition },
+            popExitTransition = { mainPopExitTransition }
+        ) { backStackEntry ->
+
+            val userId = backStackEntry.arguments?.getInt("userId") ?: 0
+            val budgetId = backStackEntry.arguments?.getInt("budgetId") ?: 0
+            AddEditBudgetScreen(navController, userId, budgetId)
+        }
+       
+          composable("add_category") {
             AddCategoryScreen(
                 navController = navController,
                 userViewModel = userViewModel,
                 onClose = { navController.navigateUp() }
             )
-        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.std.sol.databases
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
@@ -14,8 +15,8 @@ import com.std.sol.entities.User
 
 @Database(
     entities = [User::class, Transaction::class, Category::class, Budget::class],
-    version = 1,
-    exportSchema = false
+    version = 4,
+    exportSchema = true,
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

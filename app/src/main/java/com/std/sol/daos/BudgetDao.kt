@@ -8,6 +8,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.std.sol.entities.Budget
 import kotlinx.coroutines.flow.Flow
+import java.util.Date
 
 @Dao
 interface BudgetDao {
@@ -36,4 +37,32 @@ interface BudgetDao {
 
     @Delete
     suspend fun deleteBudget(budget: Budget)
+
+    /**
+     * Calculate the current amount for a budget by summing transactions for the same user and category
+     * between the provided start and end dates. Returns 0.0 when no matching transactions exist.
+     *
+     * Assumes transactions are stored in a table named `transactions` with columns:
+     * - amount (numeric)
+     * - userId (int)
+     * - categoryId (int)
+     * - date (stored as Date or compatible type via TypeConverter)
+     * - type (the transaction type, e.g., '0' for income, '1' for expense)
+     */
+    @Query(
+        """
+        SELECT COALESCE(SUM(amount), 0)
+        FROM transactions
+        WHERE userId = :userId
+          AND categoryId = :categoryId
+          AND date BETWEEN :start AND :end
+          AND type = 1
+    """
+    )
+    fun getCalculatedCurrentAmount(
+        userId: Int,
+        categoryId: Int,
+        start: Date,
+        end: Date
+    ): Flow<Double>
 }
