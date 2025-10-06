@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Create
@@ -21,6 +22,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Register : Screen("register", "Register", Icons.Filled.Home)
 
     object AddEditBudget : Screen("add_edit_budget", "Budget Editor", Icons.Filled.Create)
+    object AddTransactionScreen : Screen("add_transaction", "Add Transaction", Icons.Filled.Add)
 }
 
 
