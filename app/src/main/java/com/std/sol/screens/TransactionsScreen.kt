@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.std.sol.components.StarryBackground
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
@@ -73,7 +74,9 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     // TOTAL EXPENSE FOR SELECTED DATE
     val totalSpent = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
+    // New state for adding and editing
     var showAddScreen by remember { mutableStateOf(false) }
+    var editTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     Box(
         modifier = Modifier
@@ -85,32 +88,23 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             )
     ) {
         StarryBackground()
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(20.dp)
         ) {
-            // Header
+            // Header (no back button)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { navController.navigateUp() }) {
-                    Icon(
-                        Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Ivory
-                    )
-                }
                 Text(
-                    text = "SPENDING",
+                    text = "TRANSACTIONS",
                     color = Ivory,
                     fontSize = 20.sp,
                     fontFamily = SpaceMonoFont
                 )
-                Box(modifier = Modifier.size(24.dp))
             }
 
             Spacer(modifier = Modifier.height(30.dp))
@@ -201,7 +195,11 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 items(transactions) { transaction ->
                     TransactionCard(
                         transaction = transaction,
-                        category = categories.find { it.id == transaction.categoryId }
+                        category = categories.find { it.id == transaction.categoryId },
+                        onEdit = {
+                            editTransaction = transaction
+                            showAddScreen = true
+                        }
                     )
                 }
             }
@@ -209,7 +207,10 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
         // Floating Action Button
         FloatingActionButton(
-            onClick = { showAddScreen = true },
+            onClick = {
+                editTransaction = null
+                showAddScreen = true
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp)
@@ -226,7 +227,16 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }
 
     if (showAddScreen) {
-        AddTransactionScreen(navController, userViewModel)
+        AddTransactionScreen(
+            navController = navController,
+            userViewModel = userViewModel,
+            transactionToEdit = editTransaction,
+            onTransactionDeleted = { transaction ->
+                transactionViewModel.deleteTransaction(transaction)
+                showAddScreen = false
+            },
+            onClose = { showAddScreen = false }
+        )
     }
 }
 
@@ -240,8 +250,6 @@ fun ExpenseCircle(totalSpent: Double) {
             val strokeWidth = 12.dp.toPx()
             val radius = (size.minDimension - strokeWidth) / 2
             val center = center
-
-            // Full arc (since there's no progress/limit)
             drawCircle(
                 brush = Brush.sweepGradient(
                     colors = listOf(Orange, Amber, Ember, Rose, Orange),
@@ -252,7 +260,6 @@ fun ExpenseCircle(totalSpent: Double) {
                 style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
             )
         }
-        // Center text
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -276,14 +283,15 @@ fun ExpenseCircle(totalSpent: Double) {
 @Composable
 fun TransactionCard(
     transaction: Transaction,
-    category: Category?
+    category: Category?,
+    onEdit: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(70.dp),
+            .height(70.dp)
+            .clickable { onEdit() },
         colors = CardDefaults.cardColors(
             containerColor = Color.Black.copy(alpha = 0.3f)
         ),
@@ -295,7 +303,6 @@ fun TransactionCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Category Icon
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -312,10 +319,7 @@ fun TransactionCard(
                     modifier = Modifier.size(20.dp)
                 )
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
-            // Transaction Details
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -333,8 +337,6 @@ fun TransactionCard(
                     fontFamily = SpaceMonoFont
                 )
             }
-
-            // Amount
             Text(
                 text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${String.format("%.2f", transaction.amount)}",
                 color = if (transaction.type == TransactionType.INCOME) Leaf else Rose,

@@ -23,7 +23,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,20 +34,26 @@ import com.std.sol.components.StarryBackground
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
+import com.std.sol.entities.User
+import com.std.sol.ui.theme.*
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.TransactionViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.SessionManager
-import com.std.sol.entities.User
-import com.std.sol.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTransactionScreen(navController: NavController, userViewModel: UserViewModel?) {
+fun AddTransactionScreen(
+    navController: NavController,
+    userViewModel: UserViewModel?,
+    transactionToEdit: Transaction? = null,
+    onTransactionDeleted: ((Transaction) -> Unit)? = null,
+    onClose: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     val viewModelFactory = ViewModelFactory(
         DatabaseProvider.getDatabase(context),
@@ -62,22 +67,23 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
     }
     val userId = user?.id ?: return
 
-    var amount by remember { mutableStateOf("") }
-    var transactionName by remember { mutableStateOf("") }
-    var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
+    // STATE (pre-filled in edit mode)
+    var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
+    var transactionName by remember { mutableStateOf(transactionToEdit?.name ?: "") }
+    var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: TransactionType.EXPENSE) }
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
-    var note by remember { mutableStateOf("") }
-    var selectedDate by remember { mutableStateOf(Date()) }
+    var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
+    var selectedDate by remember { mutableStateOf(transactionToEdit?.date ?: Date()) }
     var showDatePicker by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var imageUri by remember { mutableStateOf<Uri?>(transactionToEdit?.imagePath?.let { Uri.parse(it) }) }
 
     val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
 
-    // Set default category
-    LaunchedEffect(categories) {
+    // Set default category or one corresponding to edit transaction
+    LaunchedEffect(categories, transactionToEdit) {
         if (selectedCategory == null && categories.isNotEmpty()) {
-            selectedCategory = categories.first()
+            selectedCategory = transactionToEdit?.let { t -> categories.find { it.id == t.categoryId } } ?: categories.first()
         }
     }
 
@@ -117,21 +123,24 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { navController.navigateUp() }) {
+                Spacer(modifier = Modifier.size(24.dp))
+                Text(
+                    text = if (transactionToEdit == null) "NEW TRANSACTION" else "EDIT TRANSACTION",
+                    color = Ivory,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = SpaceMonoFont
+                )
+                IconButton(onClick = {
+                    if (onClose != null) onClose()
+                    else navController.navigateUp()
+                }) {
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Close",
                         tint = Ivory
                     )
                 }
-                Text(
-                    text = "NEW TRANSACTION",
-                    color = Ivory,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont
-                )
-                Box(modifier = Modifier.size(24.dp))
             }
 
             Spacer(modifier = Modifier.height(30.dp))
@@ -172,7 +181,6 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
             SpaceTextField(
                 value = amount,
                 onValueChange = { newValue ->
-                    // Only allow numbers and one decimal point with max 2 decimal places
                     val regex = Regex("^\\d*\\.?\\d{0,2}$")
                     if (newValue.isEmpty() || regex.matches(newValue)) {
                         amount = newValue
@@ -285,7 +293,6 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
                     )
                 }
             }
-            // Show selected image (if any)
             imageUri?.let { uri ->
                 AsyncImage(
                     model = uri,
@@ -331,9 +338,7 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
                             modifier = Modifier.size(16.dp)
                         )
                     }
-
                     Spacer(modifier = Modifier.width(16.dp))
-
                     Text(
                         text = "Date: ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(selectedDate)}",
                         color = Ivory,
@@ -342,7 +347,6 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
                         fontFamily = SpaceMonoFont,
                         modifier = Modifier.weight(1f)
                     )
-
                     Row {
                         IconButton(
                             onClick = {
@@ -391,32 +395,54 @@ fun AddTransactionScreen(navController: NavController, userViewModel: UserViewMo
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Save Button
-            SpaceButton(
-                text = "SAVE",
-                onClick = {
-                    if (amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null) {
-                        val transaction = Transaction(
-                            userId = userId,
-                            categoryId = selectedCategory!!.id,
-                            name = transactionName,
-                            amount = amount.toDoubleOrNull() ?: 0.0,
-                            date = selectedDate,
-                            note = note.ifBlank { null },
-                            type = selectedType,
-                            imagePath = imageUri?.toString()
-                        )
-                        transactionViewModel.addTransaction(transaction)
-                        navController.navigateUp()
-                    }
-                },
-                enabled = amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null,
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Save & Delete Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (transactionToEdit != null) {
+                    SpaceButton(
+                        text = "DELETE",
+                        onClick = {
+                            onTransactionDeleted?.invoke(transactionToEdit)
+                        },
+                        modifier = Modifier.weight(1f),
+                        gradientColors = listOf(Rose, Ember),
+                        shadowColor = Rose,
+                        borderColor = Ember
+                    )
+                }
+                SpaceButton(
+                    text = if (transactionToEdit == null) "SAVE" else "UPDATE",
+                    onClick = {
+                        if (amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null) {
+                            val transaction = Transaction(
+                                id = transactionToEdit?.id ?: 0,
+                                userId = userId,
+                                categoryId = selectedCategory!!.id,
+                                name = transactionName,
+                                amount = amount.toDoubleOrNull() ?: 0.0,
+                                date = selectedDate,
+                                note = note.ifBlank { null },
+                                type = selectedType,
+                                imagePath = imageUri?.toString()
+                            )
+                            if (transactionToEdit == null) {
+                                transactionViewModel.addTransaction(transaction)
+                            } else {
+                                transactionViewModel.updateTransaction(transaction)
+                            }
+                            if (onClose != null) onClose()
+                            else navController.navigateUp()
+                        }
+                    },
+                    enabled = amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 
-    // Date Picker Dialog
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
