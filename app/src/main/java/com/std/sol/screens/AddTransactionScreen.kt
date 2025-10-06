@@ -10,8 +10,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -42,6 +44,8 @@ import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
 import com.std.sol.entities.User
 import com.std.sol.ui.theme.*
+import com.std.sol.utils.getCategoryColorFromEntity
+import com.std.sol.utils.getCategoryIconFromEntity
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.TransactionViewModel
 import com.std.sol.viewmodels.UserViewModel
@@ -198,6 +202,9 @@ fun AddTransactionScreen(
     }
 
 
+    // SCROLL STATE - Added for scrolling functionality
+    val scrollState = rememberScrollState()
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -206,8 +213,6 @@ fun AddTransactionScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -248,47 +253,54 @@ fun AddTransactionScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                TransactionTypeButton(
-                    text = "EXPENSE",
-                    isSelected = selectedType == TransactionType.EXPENSE,
-                    onClick = { selectedType = TransactionType.EXPENSE },
-                    modifier = Modifier.weight(1f)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Amount Display
+                Text(
+                    text = "R${if (amount.isBlank()) "0.00" else String.format("%.2f", amount.toDoubleOrNull() ?: 0.0)}",
+                    color = Color(0xFFFFFDF0),
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = SpaceMonoFont
                 )
-                TransactionTypeButton(
-                    text = "INCOME",
-                    isSelected = selectedType == TransactionType.INCOME,
-                    onClick = { selectedType = TransactionType.INCOME },
-                    modifier = Modifier.weight(1f)
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Transaction Type Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TransactionTypeButton(
+                        text = "EXPENSE",
+                        isSelected = selectedType == TransactionType.EXPENSE,
+                        onClick = { selectedType = TransactionType.EXPENSE },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TransactionTypeButton(
+                        text = "INCOME",
+                        isSelected = selectedType == TransactionType.INCOME,
+                        onClick = { selectedType = TransactionType.INCOME },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Amount Input
+                SpaceTextField(
+                    value = amount,
+                    onValueChange = { newValue ->
+                        val regex = Regex("^\\d*\\.?\\d{0,2}$")
+                        if (newValue.isEmpty() || regex.matches(newValue)) {
+                            amount = newValue
+                        }
+                    },
+                    label = "Amount",
+                    placeholder = "0.00",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.fillMaxWidth()
                 )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Amount Input
-            SpaceTextField(
-                value = amount,
-                onValueChange = { newValue ->
-                    val regex = Regex("^\\d*\\.?\\d{0,2}$")
-                    if (newValue.isEmpty() || regex.matches(newValue)) {
-                        amount = newValue
-                    }
-                },
-                label = "Amount",
-                placeholder = "0.00",
-                keyboardType = KeyboardType.Decimal,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Transaction Name
-            SpaceTextField(
-                value = transactionName,
-                onValueChange = { transactionName = it },
-                label = "Transaction Name",
-                placeholder = "Enter name",
-                modifier = Modifier.fillMaxWidth()
-            )
 
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -313,29 +325,58 @@ fun AddTransactionScreen(
                         .clickable { expandedCategory = true },
                     textStyle = TextStyle(fontFamily = InterFont, color = Color.White)
                 )
-                ExposedDropdownMenu(
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Category Selection - UPDATED to use entity colors and icons
+                ExposedDropdownMenuBox(
                     expanded = expandedCategory,
-                    onDismissRequest = { expandedCategory = false }
+                    onExpandedChange = { expandedCategory = !expandedCategory }
                 ) {
-                    categories.forEach { category ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .background(
-                                                getCategoryColor(category.name),
-                                                CircleShape
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = getCategoryIcon(category.name),
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(12.dp)
-                                        )
+                    OutlinedTextField(
+                        value = selectedCategory?.name ?: "Select Category",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                            .clickable { expandedCategory = true },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF56a1bf),
+                            unfocusedBorderColor = Color(0xFFFFFDF0),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Color(0xFF56a1bf)
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategory,
+                        onDismissRequest = { expandedCategory = false }
+                    ) {
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .background(
+                                                    getCategoryColorFromEntity(category),
+                                                    CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = getCategoryIconFromEntity(category),
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(category.name)
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
@@ -346,17 +387,12 @@ fun AddTransactionScreen(
                                         )
                                     )
                                 }
-                            },
-                            onClick = {
-                                selectedCategory = category
-                                expandedCategory = false
-                            }
-                        )
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
             // Image Picker Row
             Row(
@@ -378,56 +414,97 @@ fun AddTransactionScreen(
                         imagePickerLauncher.launch(intent)
                     }
                 ) {
-                    Icon(
-                        Icons.Default.Image,
-                        contentDescription = "Pick Image",
-                        tint = Color(0xFF56a1bf)
+                    Text(
+                        text = "Attach Image (optional):",
+                        color = Color(0xFFFFFDF0),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = SpaceMonoFont
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Remove image button (if image is selected)
+                        if (imageUri != null) {
+                            IconButton(
+                                onClick = { imageUri = null }
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Remove Image",
+                                    tint = Color(0xFFf45d92)
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                                imagePickerLauncher.launch(intent)
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = "Pick Image",
+                                tint = Color(0xFF56a1bf)
+                            )
+                        }
+                    }
+                }
+
+                // Display selected image
+                imageUri?.let { uri ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    AsyncImage(
+                        model = uri,
+                        contentDescription = "Selected image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .background(Color.Black.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop
                     )
                 }
-            }
-            imageUri?.let { uri ->
-                AsyncImage(
-                    model = uri,
-                    contentDescription = "Selected image",
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Date and Time Selection
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
-                        .padding(top = 4.dp)
-                        .background(Color.Black.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Date and Time Selection
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-                    .clickable { showDatePicker = true },
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF3a5c85)
-                ),
-                shape = RoundedCornerShape(15.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .height(60.dp)
+                        .clickable { showDatePicker = true },
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF3a5c85)
+                    ),
+                    shape = RoundedCornerShape(15.dp)
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .size(30.dp)
-                            .background(Color(0xFF118337), CircleShape),
-                        contentAlignment = Alignment.Center
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.DateRange,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(Color(0xFF118337), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.DateRange,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Date: ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(selectedDate)}",
+                            color = Color(0xFFFFFDF0),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = SpaceMonoFont,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                     Spacer(modifier = Modifier.width(16.dp))
@@ -462,65 +539,68 @@ fun AddTransactionScreen(
                         modifier = Modifier.padding(start = 4.dp)
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Note Field
-            SpaceTextField(
-                value = note,
-                onValueChange = { note = it },
-                label = "Note (Optional)",
-                placeholder = "Add a note",
-                modifier = Modifier.fillMaxWidth()
-            )
+                // Note Field
+                SpaceTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = "Note (Optional)",
+                    placeholder = "Add a note",
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            // Save & Delete Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (transactionToEdit != null) {
+                // Save & Delete Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (transactionToEdit != null) {
+                        SpaceButton(
+                            text = "DELETE",
+                            onClick = {
+                                onTransactionDeleted?.invoke(transactionToEdit)
+                            },
+                            modifier = Modifier.weight(1f),
+                            gradientColors = listOf(Color(0xFFf45d92), Color(0xFFb42313)),
+                            shadowColor = Color(0xFFf45d92),
+                            borderColor = Color(0xFFb42313)
+                        )
+                    }
                     SpaceButton(
-                        text = "DELETE",
+                        text = if (transactionToEdit == null) "SAVE" else "UPDATE",
                         onClick = {
-                            onTransactionDeleted?.invoke(transactionToEdit)
+                            if (amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null) {
+                                val transaction = Transaction(
+                                    id = transactionToEdit?.id ?: 0,
+                                    userId = userId,
+                                    categoryId = selectedCategory!!.id,
+                                    name = transactionName,
+                                    amount = amount.toDoubleOrNull() ?: 0.0,
+                                    date = selectedDate,
+                                    note = note.ifBlank { null },
+                                    type = selectedType,
+                                    imagePath = imageUri?.toString()
+                                )
+                                if (transactionToEdit == null) {
+                                    transactionViewModel.addTransaction(transaction)
+                                } else {
+                                    transactionViewModel.updateTransaction(transaction)
+                                }
+                                if (onClose != null) onClose()
+                                else navController.navigateUp()
+                            }
                         },
-                        modifier = Modifier.weight(1f),
-                        gradientColors = listOf(Color(0xFFf45d92), Color(0xFFb42313)),
-                        shadowColor = Color(0xFFf45d92),
-                        borderColor = Color(0xFFb42313)
+                        enabled = amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null,
+                        modifier = Modifier.weight(1f)
                     )
                 }
-                SpaceButton(
-                    text = if (transactionToEdit == null) "SAVE" else "UPDATE",
-                    onClick = {
-                        if (amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null) {
-                            val transaction = Transaction(
-                                id = transactionToEdit?.id ?: 0,
-                                userId = userId,
-                                categoryId = selectedCategory!!.id,
-                                name = transactionName,
-                                amount = amount.toDoubleOrNull() ?: 0.0,
-                                date = selectedDate,
-                                note = note.ifBlank { null },
-                                type = selectedType,
-                                imagePath = imageUri?.toString()
-                            )
-                            if (transactionToEdit == null) {
-                                transactionViewModel.addTransaction(transaction)
-                            } else {
-                                transactionViewModel.updateTransaction(transaction)
-                            }
-                            if (onClose != null) onClose()
-                            else navController.navigateUp()
-                        }
-                    },
-                    enabled = amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null,
-                    modifier = Modifier.weight(1f)
-                )
+
+                // Extra bottom spacing to ensure save button is always accessible
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }

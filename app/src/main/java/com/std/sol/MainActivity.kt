@@ -25,6 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -40,8 +43,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.std.sol.components.AddOptionsDialog
 import com.std.sol.components.StarryBackground
 import com.std.sol.databases.DatabaseProvider
+import com.std.sol.screens.AddCategoryScreen
 import com.std.sol.screens.AddEditBudgetScreen
 import com.std.sol.screens.AddTransactionScreen
 import com.std.sol.screens.BudgetsScreen
@@ -120,6 +125,9 @@ fun App(userViewModel: UserViewModel) {
     )
     val showBottomBar = currentRoute in mainScreens
 
+    // Add options dialog state
+    var showAddOptionsDialog by remember { mutableStateOf(false) }
+
     val targetGradient = if (currentRoute in authScreens) AuthGradient else MoreScreenGradient
 
     val animatedGradientColors = List(targetGradient.size) { index ->
@@ -172,7 +180,11 @@ fun App(userViewModel: UserViewModel) {
         Scaffold(
             bottomBar = {
                 if (showBottomBar) {
-                    BottomNavigationBar(navController)
+                    // UPDATED: Use BottomNavigationBarWithFAB instead of BottomNavigationBar
+                    BottomNavigationBarWithFAB(
+                        navController = navController,
+                        onAddClick = { showAddOptionsDialog = true }
+                    )
                 }
             },
             containerColor = Color.Transparent
@@ -183,6 +195,20 @@ fun App(userViewModel: UserViewModel) {
                 modifier = Modifier.padding(innerPadding)
             )
         }
+    }
+
+    // Add Options Dialog
+    if (showAddOptionsDialog) {
+        AddOptionsDialog(
+            onDismiss = { showAddOptionsDialog = false },
+            onAddTransaction = {
+                navController.navigate("add_transaction")
+            },
+            onAddCategory = {
+                // For now, navigate to add transaction (you can create AddCategoryScreen later)
+                navController.navigate("add_category")
+            }
+        )
     }
 }
 
@@ -227,7 +253,6 @@ fun AppNavHost(
             slideInHorizontally(animationSpec = animationSpec1) { -it } + fadeIn(animationSpec2)
         val mainPopExitTransition =
             slideOutHorizontally(animationSpec = animationSpec1) { it } + fadeOut(animationSpec2)
-
 
         composable(
             route = Screen.Dashboard.route,
@@ -285,9 +310,15 @@ fun AppNavHost(
             val budgetId = backStackEntry.arguments?.getInt("budgetId") ?: 0
             AddEditBudgetScreen(navController, userId, budgetId)
         }
+       
+          composable("add_category") {
+            AddCategoryScreen(
+                navController = navController,
+                userViewModel = userViewModel,
+                onClose = { navController.navigateUp() }
+            )
     }
 }
-
 
 @Preview
 @Composable

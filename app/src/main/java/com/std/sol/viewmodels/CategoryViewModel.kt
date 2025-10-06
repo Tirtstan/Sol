@@ -73,4 +73,5 @@ class CategoryViewModel(private val categoryDao: CategoryDao) : ViewModel() {
             categoryDao.deleteCategory(category)
         }
     }
+
 }
