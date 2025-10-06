@@ -46,6 +46,7 @@ import androidx.navigation.compose.rememberNavController
 import com.std.sol.components.AddOptionsDialog
 import com.std.sol.components.StarryBackground
 import com.std.sol.databases.DatabaseProvider
+import com.std.sol.screens.AddCategoryScreen
 import com.std.sol.screens.AddTransactionScreen
 import com.std.sol.screens.BudgetsScreen
 import com.std.sol.screens.DashboardScreen
@@ -280,11 +281,8 @@ fun AppNavHost(
             )
         }
 
-        // Add Category Screen (placeholder for now)
         composable("add_category") {
-            // TODO: Create AddCategoryScreen
-            // For now, navigate to add transaction as placeholder
-            AddTransactionScreen(
+            AddCategoryScreen(
                 navController = navController,
                 userViewModel = userViewModel,
                 onClose = { navController.navigateUp() }

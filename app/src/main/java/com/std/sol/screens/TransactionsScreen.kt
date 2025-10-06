@@ -33,6 +33,8 @@ import com.std.sol.components.StarryBackground
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
+import com.std.sol.utils.getCategoryColorFromEntity
+import com.std.sol.utils.getCategoryIconFromEntity
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.TransactionViewModel
 import com.std.sol.viewmodels.UserViewModel
@@ -116,7 +118,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
     // NEW: Determine circle color based on selected category
     val circleColor = if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
-        getCategoryColor(selectedCustomCategory!!.name)
+        getCategoryColorFromEntity(selectedCustomCategory)
     } else {
         null // Use default gradient
     }
@@ -218,7 +220,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // NEW: Category selector dropdown
+                // UPDATED: Category selector dropdown with entity colors and icons
                 ExposedDropdownMenuBox(
                     expanded = expandedCategoryDropdown,
                     onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }
@@ -290,13 +292,13 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                                             modifier = Modifier
                                                 .size(20.dp)
                                                 .background(
-                                                    getCategoryColor(category.name),
+                                                    getCategoryColorFromEntity(category),
                                                     CircleShape
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = getCategoryIcon(category.name),
+                                                imageVector = getCategoryIconFromEntity(category),
                                                 contentDescription = null,
                                                 tint = Color.White,
                                                 modifier = Modifier.size(12.dp)
@@ -576,7 +578,7 @@ fun getEndOfDay(date: Date): Date {
     return cal.time
 }
 
-// --- ExpenseCircle, TransactionCard, getCategoryColor, getCategoryIcon ---
+// --- ExpenseCircle, TransactionCard ---
 
 @Composable
 fun ExpenseCircle(
@@ -664,13 +666,13 @@ fun TransactionCard(
                     modifier = Modifier
                         .size(40.dp)
                         .background(
-                            color = getCategoryColor(category?.name ?: ""),
+                            color = getCategoryColorFromEntity(category),
                             shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = getCategoryIcon(category?.name ?: ""),
+                        imageVector = getCategoryIconFromEntity(category),
                         contentDescription = category?.name,
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
@@ -739,27 +741,5 @@ fun TransactionCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun getCategoryColor(categoryName: String): Color {
-    return when (categoryName.lowercase()) {
-        "food" -> Color(0xFF118337)
-        "fuel" -> Color(0xFF280b26)
-        "entertainment" -> Color(0xFF8f1767)
-        "other" -> Color(0xFF465be7)
-        else -> Color(0xFF465be7)
-    }
-}
-
-@Composable
-fun getCategoryIcon(categoryName: String): ImageVector {
-    return when (categoryName.lowercase()) {
-        "food" -> Icons.Default.Restaurant
-        "fuel" -> Icons.Default.LocalGasStation
-        "entertainment" -> Icons.Default.Movie
-        "other" -> Icons.Default.Category
-        else -> Icons.Default.Category
     }
 }

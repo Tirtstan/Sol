@@ -38,6 +38,8 @@ import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
 import com.std.sol.entities.User
 import com.std.sol.ui.theme.*
+import com.std.sol.utils.getCategoryColorFromEntity
+import com.std.sol.utils.getCategoryIconFromEntity
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.TransactionViewModel
 import com.std.sol.viewmodels.UserViewModel
@@ -226,7 +228,7 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Category Selection - FIXED DROPDOWN
+                // Category Selection - UPDATED to use entity colors and icons
                 ExposedDropdownMenuBox(
                     expanded = expandedCategory,
                     onExpandedChange = { expandedCategory = !expandedCategory }
@@ -261,13 +263,13 @@ fun AddTransactionScreen(
                                             modifier = Modifier
                                                 .size(20.dp)
                                                 .background(
-                                                    getCategoryColor(category.name),
+                                                    getCategoryColorFromEntity(category),
                                                     CircleShape
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = getCategoryIcon(category.name),
+                                                imageVector = getCategoryIconFromEntity(category),
                                                 contentDescription = null,
                                                 tint = Color.White,
                                                 modifier = Modifier.size(12.dp)
