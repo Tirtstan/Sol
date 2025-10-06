@@ -60,174 +60,166 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    Box(
+
+
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = AuthGradient
-                )
-            )
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        StarryBackground()
+        Spacer(modifier = Modifier.height(60.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(60.dp))
+        StaggeredItem(index = 0, durationMillis = 1500) {
+            Text(
+                text = stringResource(R.string.welcome_to),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Normal,
+                    fontStyle = FontStyle.Italic
+                ),
+                textAlign = TextAlign.Center
+            )
+        }
 
-            StaggeredItem(index = 0, durationMillis = 1500) {
-                Text(
-                    text = stringResource(R.string.welcome_to),
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Normal,
-                        fontStyle = FontStyle.Italic
-                    ),
-                    textAlign = TextAlign.Center
-                )
-            }
+        StaggeredItem(index = 1, durationMillis = 1500) {
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontSize = 70.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontStyle = FontStyle.Italic,
+                    color = Amber
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
 
-            StaggeredItem(index = 1, durationMillis = 1500) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontSize = 70.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontStyle = FontStyle.Italic,
-                        color = Amber
-                    ),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-            }
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+        StaggeredItem(index = 2) {
+            SpaceTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = stringResource(R.string.username),
+                placeholder = stringResource(R.string.enter_username),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
-            StaggeredItem(index = 2) {
-                SpaceTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = stringResource(R.string.username),
-                    placeholder = stringResource(R.string.enter_username),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            StaggeredItem(index = 3) {
-                SpaceTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = stringResource(R.string.password),
-                    placeholder = stringResource(R.string.enter_password),
-                    keyboardType = KeyboardType.Password,
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                painter = painterResource(
-                                    if (passwordVisible) android.R.drawable.ic_menu_view
-                                    else android.R.drawable.ic_secure
-                                ),
-                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                tint = Ivory
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            StaggeredItem(index = 4) {
-                SpaceTextField(
-                    value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
-                    label = "Confirm password",
-                    placeholder = "Re-enter password",
-                    keyboardType = KeyboardType.Password,
-                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            confirmPasswordVisible = !confirmPasswordVisible
-                        }) {
-                            Icon(
-                                painter = painterResource(
-                                    if (confirmPasswordVisible) android.R.drawable.ic_menu_view
-                                    else android.R.drawable.ic_secure
-                                ),
-                                contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
-                                tint = Ivory
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            StaggeredItem(index = 5) {
-                val loginText = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Ivory)) {
-                        append(stringResource(R.string.already_have_an_account))
-                    }
-
-                    withLink(
-                        LinkAnnotation.Clickable(
-                            tag = "login",
-                            linkInteractionListener = {
-                                navController.navigate(Screen.Login.route)
-                            }
+        StaggeredItem(index = 3) {
+            SpaceTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = stringResource(R.string.password),
+                placeholder = stringResource(R.string.enter_password),
+                keyboardType = KeyboardType.Password,
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            painter = painterResource(
+                                if (passwordVisible) android.R.drawable.ic_menu_view
+                                else android.R.drawable.ic_secure
+                            ),
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            tint = Ivory
                         )
-                    ) {
-                        withStyle(
-                            SpanStyle(
-                                color = Amber,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        ) {
-                            append(stringResource(R.string.login))
-                        }
                     }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        StaggeredItem(index = 4) {
+            SpaceTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                label = "Confirm password",
+                placeholder = "Re-enter password",
+                keyboardType = KeyboardType.Password,
+                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = {
+                        confirmPasswordVisible = !confirmPasswordVisible
+                    }) {
+                        Icon(
+                            painter = painterResource(
+                                if (confirmPasswordVisible) android.R.drawable.ic_menu_view
+                                else android.R.drawable.ic_secure
+                            ),
+                            contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
+                            tint = Ivory
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        StaggeredItem(index = 5) {
+            val loginText = buildAnnotatedString {
+                withStyle(SpanStyle(color = Ivory)) {
+                    append(stringResource(R.string.already_have_an_account))
                 }
 
-                Text(
-                    text = loginText,
-                    fontSize = 14.sp,
-                    style = MaterialTheme.typography.bodyMedium.copy(color = Color.Unspecified)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            StaggeredItem(index = 6) {
-                SpaceButton(
-                    text = stringResource(R.string.sign_up),
-                    onClick = {
-                        handleRegistration(
-                            scope,
-                            userViewModel,
-                            username,
-                            password,
-                            context,
-                            navController
+                withLink(
+                    LinkAnnotation.Clickable(
+                        tag = "login",
+                        linkInteractionListener = {
+                            navController.navigate(Screen.Login.route)
+                        }
+                    )
+                ) {
+                    withStyle(
+                        SpanStyle(
+                            color = Amber,
+                            fontWeight = FontWeight.SemiBold
                         )
-                    },
-                    enabled = username.isNotBlank() && password.isNotBlank() && passwordsMatch,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                )
+                    ) {
+                        append(stringResource(R.string.login))
+                    }
+                }
             }
+
+            Text(
+                text = loginText,
+                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium.copy(color = Color.Unspecified)
+            )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        StaggeredItem(index = 6) {
+            SpaceButton(
+                text = stringResource(R.string.sign_up),
+                onClick = {
+                    handleRegistration(
+                        scope,
+                        userViewModel,
+                        username,
+                        password,
+                        context,
+                        navController
+                    )
+                },
+                enabled = username.isNotBlank() && password.isNotBlank() && passwordsMatch,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+            )
+        }
+
     }
 }
 
@@ -277,7 +269,7 @@ private fun handleRegistration(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, backgroundColor = 0xFF25315E)
 @Composable
 fun RegisterScreenPreview() {
     SolTheme {

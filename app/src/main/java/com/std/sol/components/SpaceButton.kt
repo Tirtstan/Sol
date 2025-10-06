@@ -23,13 +23,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.tooling.preview.Preview
 import com.std.sol.ui.theme.SolTheme
-import com.std.sol.ui.theme.Plum
-import com.std.sol.ui.theme.Amber
+import com.std.sol.ui.theme.RoyalBright
+import com.std.sol.ui.theme.Indigo
+import org.intellij.lang.annotations.Language
 
 @Composable
 fun SpaceButton(
@@ -37,9 +40,9 @@ fun SpaceButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    gradientColors: List<Color> = listOf(Plum, Plum.copy(alpha = 0.9f), Amber.copy(alpha = 0.6f)),
-    shadowColor: Color = Plum,
-    borderColor: Color = Amber,
+    gradientColors: List<Color> = listOf(Indigo, RoyalBright),
+    shadowColor: Color = RoyalBright,
+    borderColor: Color = RoyalBright.copy(alpha = 0.5f),
     leadingIcon: (@Composable (() -> Unit))? = null,
     trailingIcon: (@Composable (() -> Unit))? = null
 ) {
@@ -109,8 +112,6 @@ fun SpaceButton(
                 trailingIcon()
             }
         }
-
-
     }
 }
 
@@ -126,6 +127,5 @@ fun SpaceButtonPreview() {
                     .width(200.dp)
             )
         }
-
     }
 }
