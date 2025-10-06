@@ -29,13 +29,15 @@ import java.util.Date
 data class Transaction(
     @PrimaryKey(autoGenerate = true)
     @SerializedName("id")
-    val id: Int,
+    val id: Int = 0,
     @ColumnInfo(name = "userId")
     @SerializedName("userId")
     val userId: Int,
     @ColumnInfo(name = "categoryId")
     @SerializedName("categoryId")
     val categoryId: Int,
+    @SerializedName("name")
+    val name: String,
     @SerializedName("amount")
     val amount: Double,
     @SerializedName("date")
@@ -43,5 +45,7 @@ data class Transaction(
     @SerializedName("note")
     val note: String?,
     @SerializedName("type")
-    val type: TransactionType
+    val type: TransactionType,
+    @SerializedName("imagePath")
+    val imagePath: String? = null
 )

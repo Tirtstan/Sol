@@ -43,6 +43,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.components.StarryBackground
 import com.std.sol.databases.DatabaseProvider
+import com.std.sol.screens.AddTransactionScreen
 import com.std.sol.screens.BudgetsScreen
 import com.std.sol.screens.DashboardScreen
 import com.std.sol.screens.LoginScreen
@@ -256,3 +257,4 @@ fun AppNavHost(
 fun MainPreview() {
     SolTheme(darkTheme = true) { Main() }
 }
+
