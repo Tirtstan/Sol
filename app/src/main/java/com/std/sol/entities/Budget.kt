@@ -40,10 +40,12 @@ data class Budget(
     val name: String,
     @SerializedName("description")
     val description: String?,
-    @SerializedName("currentAmount")
-    val currentAmount: Double,
-    @SerializedName("goalAmount")
-    val goalAmount: Double,
-    @SerializedName("createdDate")
-    val createdDate: Date
+    @SerializedName("minGoalAmount")
+    val minGoalAmount: Double,
+    @SerializedName("maxGoalAmount")
+    val maxGoalAmount: Double,
+    @SerializedName("startDate")
+    val startDate: Date,
+    @SerializedName("endDate")
+    val endDate: Date
 )

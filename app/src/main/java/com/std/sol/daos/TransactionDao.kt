@@ -7,7 +7,9 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.std.sol.entities.Transaction
+import com.std.sol.entities.TransactionType
 import kotlinx.coroutines.flow.Flow
+import java.util.Date
 
 @Dao
 interface TransactionDao {
@@ -23,6 +25,18 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY date ASC")
     fun getAllTransactionsAsc(userId: Int): Flow<List<Transaction>>
 
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND date BETWEEN :startDate AND :endDate ORDER BY date DESC")
+    fun getTransactionsByPeriodDesc(userId: Int, startDate: Date, endDate: Date): Flow<List<Transaction>>
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND date BETWEEN :startDate AND :endDate ORDER BY date ASC")
+    fun getTransactionsByPeriodAsc(userId: Int, startDate: Date, endDate: Date): Flow<List<Transaction>>
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = :type ORDER BY date DESC")
+    fun getTransactionsByTypeDesc(userId: Int, type: TransactionType): Flow<List<Transaction>>
+
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND type = :type ORDER BY date ASC")
+    fun getTransactionsByTypeAsc(userId: Int, type: TransactionType): Flow<List<Transaction>>
+
     fun getAllTransactions(
         userId: Int,
         descending: Boolean = false
@@ -31,6 +45,31 @@ interface TransactionDao {
             getAllTransactionsDesc(userId)
         } else {
             getAllTransactionsAsc(userId)
+        }
+    }
+
+    fun getTransactionsByPeriod(
+        userId: Int,
+        startDate: Date,
+        endDate: Date,
+        descending: Boolean = true
+    ): Flow<List<Transaction>> {
+        return if (descending) {
+            getTransactionsByPeriodDesc(userId, startDate, endDate)
+        } else {
+            getTransactionsByPeriodAsc(userId, startDate, endDate)
+        }
+    }
+
+    fun getTransactionsByType(
+        userId: Int,
+        type: TransactionType,
+        descending: Boolean = true
+    ): Flow<List<Transaction>> {
+        return if (descending) {
+            getTransactionsByTypeDesc(userId, type)
+        } else {
+            getTransactionsByTypeAsc(userId, type)
         }
     }
 

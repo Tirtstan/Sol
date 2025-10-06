@@ -12,10 +12,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CategoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCategory(category: Category)
+    suspend fun insertCategory(category: Category): Long
 
     @Query("SELECT * FROM categories WHERE name = :name")
     suspend fun getCategoryByName(name: String): Category?
+
+    @Query("SELECT * FROM categories WHERE name = :name AND userId = :userId LIMIT 1")
+    suspend fun getCategoryByNameForUser(name: String, userId: Int): Category?
 
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getCategoryById(id: Int): Category?

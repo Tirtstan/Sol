@@ -4,6 +4,16 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 
 object PasswordUtils {
+
+    fun isPasswordValid(password: String): Boolean {
+        if (password.length < 8) return false
+        val hasUpperCase = password.any { it.isUpperCase() }
+        val hasDigit = password.any { it.isDigit() }
+        val hasSpecialChar = password.any { !it.isLetterOrDigit() }
+
+        return hasUpperCase && hasDigit && hasSpecialChar
+    }
+
     fun hashPassword(password: String, salt: String = generateSalt()): String {
         val saltedPassword = password + salt
         val digest = MessageDigest.getInstance("SHA-256")
@@ -23,4 +33,6 @@ object PasswordUtils {
         random.nextBytes(salt)
         return salt.joinToString("") { "%02x".format(it) }
     }
+
+
 }

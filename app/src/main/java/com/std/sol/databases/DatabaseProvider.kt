@@ -13,7 +13,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "sol_database"
-            ).build()
+            ).fallbackToDestructiveMigration(false).build()
             INSTANCE = instance
             instance
         }
