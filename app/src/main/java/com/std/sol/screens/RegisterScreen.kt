@@ -2,7 +2,6 @@ package com.std.sol.screens
 
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -39,14 +37,13 @@ import com.std.sol.components.SpaceTextField
 import com.std.sol.components.StaggeredItem
 import com.std.sol.entities.User
 import com.std.sol.ui.theme.Amber
-import com.std.sol.ui.theme.AuthGradient
 import com.std.sol.ui.theme.Ivory
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.utils.PasswordUtils
 import com.std.sol.viewmodels.UserViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import com.std.sol.components.StarryBackground
+
 
 @Composable
 fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) {
@@ -56,12 +53,10 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
+    val isPasswordValid = remember(password) { PasswordUtils.isPasswordValid(password) }
     val passwordsMatch = password == confirmPassword
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
-
-
 
     Column(
         modifier = Modifier
@@ -70,15 +65,11 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(60.dp))
-
         StaggeredItem(index = 0, durationMillis = 1500) {
             Text(
                 text = stringResource(R.string.welcome_to),
                 style = MaterialTheme.typography.headlineLarge.copy(
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Normal,
-                    fontStyle = FontStyle.Italic
+                    fontSize = 36.sp, fontWeight = FontWeight.Normal, fontStyle = FontStyle.Italic
                 ),
                 textAlign = TextAlign.Center
             )
@@ -136,6 +127,15 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
             )
         }
 
+        if (password.isNotEmpty() && !isPasswordValid) {
+            Text(
+                text = "Password must be 8+ characters with an uppercase, number, and special character.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp, end = 16.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         StaggeredItem(index = 4) {
@@ -174,16 +174,13 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
 
                 withLink(
                     LinkAnnotation.Clickable(
-                        tag = "login",
-                        linkInteractionListener = {
+                        tag = "login", linkInteractionListener = {
                             navController.navigate(Screen.Login.route)
-                        }
-                    )
+                        })
                 ) {
                     withStyle(
                         SpanStyle(
-                            color = Amber,
-                            fontWeight = FontWeight.SemiBold
+                            color = Amber, fontWeight = FontWeight.SemiBold
                         )
                     ) {
                         append(stringResource(R.string.login))
@@ -205,12 +202,7 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
                 text = stringResource(R.string.sign_up),
                 onClick = {
                     handleRegistration(
-                        scope,
-                        userViewModel,
-                        username,
-                        password,
-                        context,
-                        navController
+                        scope, userViewModel, username, password, context, navController
                     )
                 },
                 enabled = username.isNotBlank() && password.isNotBlank() && passwordsMatch,
@@ -234,30 +226,30 @@ private fun handleRegistration(
     scope.launch {
         val existingUser = userViewModel?.getUserByUsername(username)
         if (existingUser != null) {
-            Toast.makeText(
-                context,
-                "Username already taken",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(context, "Username already taken", Toast.LENGTH_SHORT).show()
         } else {
-            val passwordHash = PasswordUtils.hashPassword(password)
-            val newUser =
-                User(
-                    id = 0,
-                    username = username,
-                    passwordHash = passwordHash
-                )
-            userViewModel?.addUser(newUser)
 
-            val createdUser = userViewModel?.getUserByUsername(username)
-            if (createdUser != null) {
-                userViewModel.setCurrentUser(createdUser)
-                Toast.makeText(
-                    context,
-                    "Registration successful!",
-                    Toast.LENGTH_SHORT
-                ).show()
-                navController.navigate(Screen.Dashboard.route)
+            val passwordHash = PasswordUtils.hashPassword(password)
+            val newUser = User(id = 0, username = username, passwordHash = passwordHash)
+
+            val newUserId =
+                userViewModel?.addUserAndWait(newUser)
+
+            if (newUserId != null && newUserId > 0) {
+                val createdUser = userViewModel.getUserByUsername(username)
+                if (createdUser != null) {
+                    userViewModel.setCurrentUser(createdUser)
+                    Toast.makeText(context, "Registration successful!", Toast.LENGTH_SHORT).show()
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                } else {
+                    Toast.makeText(
+                        context,
+                        "Registration failed. Please try again.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } else {
                 Toast.makeText(
                     context,
@@ -274,8 +266,7 @@ private fun handleRegistration(
 fun RegisterScreenPreview() {
     SolTheme {
         RegisterScreen(
-            navController = rememberNavController(),
-            userViewModel = null
+            navController = rememberNavController(), userViewModel = null
         )
     }
 }

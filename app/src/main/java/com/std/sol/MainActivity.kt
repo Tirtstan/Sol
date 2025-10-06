@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-// Add animation imports
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -54,6 +53,7 @@ import com.std.sol.screens.TransactionsScreen
 import com.std.sol.ui.theme.AuthGradient
 import com.std.sol.ui.theme.MoreScreenGradient
 import com.std.sol.ui.theme.SolTheme
+import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
 
@@ -80,13 +80,21 @@ fun Main() {
                 SessionManager(context.applicationContext)
             )
             val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
+            val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
+
             val isLoading by userViewModel.isLoading.collectAsState()
+            val currentUser by userViewModel.currentUser.collectAsState()
 
             if (isLoading && !LocalInspectionMode.current) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
+                LaunchedEffect(currentUser) {
+                    currentUser?.let { user ->
+                        categoryViewModel.ensureDefaultCategories(user.id)
+                    }
+                }
                 App(userViewModel)
             }
         }
@@ -182,8 +190,8 @@ fun AppNavHost(
     userViewModel: UserViewModel,
     modifier: Modifier = Modifier
 ) {
-    val animationSpec1 = tween<IntOffset>(durationMillis = 400)
-    val animationSpec2 = tween<Float>(durationMillis = 400)
+    val animationSpec1 = tween<IntOffset>(durationMillis = 300)
+    val animationSpec2 = tween<Float>(durationMillis = 300)
 
     NavHost(
         navController = navController,
@@ -191,7 +199,9 @@ fun AppNavHost(
         modifier = modifier
     ) {
         val authEnterTransition =
-            slideInVertically(animationSpec = animationSpec1) { it } + fadeIn(animationSpec2)
+            slideInVertically(
+                animationSpec = animationSpec1
+            ) { it } + fadeIn(animationSpec2)
         val authExitTransition =
             slideOutVertically(animationSpec = animationSpec1) { it } + fadeOut(animationSpec2)
 
@@ -248,6 +258,15 @@ fun AppNavHost(
             popEnterTransition = { mainPopEnterTransition },
             popExitTransition = { mainPopExitTransition }
         ) { MoreScreen(navController, userViewModel) }
+
+        composable(
+            route = Screen.AddTransactionScreen.route,
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { 300 }, animationSpec = animationSpec1
+                )
+            },
+        ) { AddTransactionScreen(navController, userViewModel) }
     }
 }
 

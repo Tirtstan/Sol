@@ -4,8 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,16 +15,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.std.sol.components.StarryBackground
+import androidx.navigation.compose.rememberNavController
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
@@ -34,11 +37,12 @@ import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.SessionManager
+import com.std.sol.entities.User
 import com.std.sol.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-enum class TransactionFilterType { RECENTS, MONTH, CUSTOM }
+enum class TransactionFilterType { RECENTS, MONTH, WEEK, CUSTOM }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,9 +56,9 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
 
     val user by userViewModel?.currentUser?.collectAsState() ?: remember {
-        mutableStateOf(null)
+        mutableStateOf(User(-1, "John Doe", ""))
     }
-    val userId = user?.id ?: return
+    val userId = user?.id ?: -1
 
     // Filtering state
     var filterType by remember { mutableStateOf(TransactionFilterType.RECENTS) }
@@ -79,59 +83,103 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }.time
     val thisMonthEnd = getEndOfDay(Date())
 
+    // This week start/end (respect locale first day of week)
+    val thisWeekRange = Calendar.getInstance().let { cal ->
+        cal.time = now
+        // Move to first day of week
+        cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val start = cal.time
+        cal.add(Calendar.DAY_OF_YEAR, 6)
+        val end = getEndOfDay(cal.time)
+        Pair(start, end)
+    }
+    val thisWeekStart = thisWeekRange.first
+    val thisWeekEnd = thisWeekRange.second
+
     val (queryStart, queryEnd) = when (filterType) {
-        TransactionFilterType.RECENTS -> Pair(Date(0), Date(Long.MAX_VALUE)) // all for now, but will group by day
+        TransactionFilterType.RECENTS -> Pair(
+            Date(0),
+            Date(Long.MAX_VALUE)
+        ) // all for now, but will group by day
         TransactionFilterType.MONTH -> Pair(thisMonthStart, thisMonthEnd)
+        TransactionFilterType.WEEK -> Pair(thisWeekStart, thisWeekEnd)
         TransactionFilterType.CUSTOM -> Pair(customStart, customEnd)
     }
 
     // All transactions in the period
-    val allTransactions by transactionViewModel.getTransactionsByPeriod(userId, queryStart, queryEnd)
+    val allTransactions by transactionViewModel.getTransactionsByPeriod(
+        userId,
+        queryStart,
+        queryEnd
+    )
         .collectAsState(initial = emptyList())
-    val categories by categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
+    val categories by categoryViewModel.getAllCategories(userId)
+        .collectAsState(initial = emptyList())
 
     // Filter transactions by category if custom filter is selected and category is chosen
-    val filteredTransactions = if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
-        allTransactions.filter { it.categoryId == selectedCustomCategory!!.id }
-    } else {
-        allTransactions
-    }
+    val filteredTransactions =
+        if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
+            allTransactions.filter { it.categoryId == selectedCustomCategory!!.id }
+        } else {
+            allTransactions
+        }
 
     // Group or filter transactions as needed
     val groupedTransactions = when (filterType) {
         TransactionFilterType.RECENTS -> groupTransactionsByDay(allTransactions)
         TransactionFilterType.MONTH -> groupTransactionsByDay(allTransactions)
+        TransactionFilterType.WEEK -> groupTransactionsByDay(allTransactions)
         TransactionFilterType.CUSTOM -> mapOf("" to filteredTransactions.sortedByDescending { it.date })
     }
-    val expenseSum = filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    var expenseSum =
+        filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    if (LocalInspectionMode.current)
+        expenseSum = 99999.0
 
     // NEW: Determine circle color based on selected category
-    val circleColor = if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
-        getCategoryColor(selectedCustomCategory!!.name)
-    } else {
-        null // Use default gradient
-    }
+    val circleColor =
+        if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
+            getCategoryColor(selectedCustomCategory!!.name)
+        } else {
+            null // Use default gradient
+        }
 
     // New state for adding and editing
     var showAddScreen by remember { mutableStateOf(false) }
     var editTransaction by remember { mutableStateOf<Transaction?>(null) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0c1327), Color(0xFF25315e), Color(0xFF19102e))
+    Scaffold(
+        containerColor = Color.Transparent,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    editTransaction = null
+                    showAddScreen = true
+                },
+                modifier = Modifier
+                    .size(60.dp),
+                containerColor = Color(0xFFf4c047),
+                contentColor = Color(0xFF0c1327)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add Transaction",
+                    modifier = Modifier.size(30.dp)
                 )
-            )
-    ) {
-        StarryBackground()
+            }
+        }
+    ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .padding(20.dp)
         ) {
-            // Header (no back button)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -140,13 +188,13 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 Text(
                     text = "TRANSACTIONS",
                     color = Color(0xFFFFFDF0),
-                    fontSize = 20.sp,
-                    fontFamily = SpaceMonoFont
+                    fontSize = 28.sp,
+                    fontFamily = SpaceMonoFont,
+                    fontWeight = FontWeight.Bold
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Expense Circle - CENTERED with dynamic color
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -161,35 +209,54 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Filter Cards
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            LazyRow(
+                modifier = Modifier
+                    .height(44.dp),
+                contentPadding = PaddingValues(start = 4.dp, end = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                FilterCard(
-                    selected = filterType == TransactionFilterType.RECENTS,
-                    label = "Recents",
-                    onClick = {
-                        filterType = TransactionFilterType.RECENTS
-                        selectedCustomCategory = null // Reset category filter
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterCard(
-                    selected = filterType == TransactionFilterType.MONTH,
-                    label = "Month",
-                    onClick = {
-                        filterType = TransactionFilterType.MONTH
-                        selectedCustomCategory = null // Reset category filter
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterCard(
-                    selected = filterType == TransactionFilterType.CUSTOM,
-                    label = "Custom",
-                    onClick = { filterType = TransactionFilterType.CUSTOM },
-                    modifier = Modifier.weight(1f)
-                )
+                item {
+                    FilterCard(
+                        selected = filterType == TransactionFilterType.RECENTS,
+                        label = "Recent",
+                        onClick = {
+                            filterType = TransactionFilterType.RECENTS
+                            selectedCustomCategory = null // Reset category filter
+                        },
+                        modifier = Modifier.wrapContentWidth()
+                    )
+                }
+                item {
+                    FilterCard(
+                        selected = filterType == TransactionFilterType.MONTH,
+                        label = "This Month",
+                        onClick = {
+                            filterType = TransactionFilterType.MONTH
+                            selectedCustomCategory = null // Reset category filter
+                        },
+                        modifier = Modifier.wrapContentWidth()
+                    )
+                }
+                item {
+                    FilterCard(
+                        selected = filterType == TransactionFilterType.WEEK,
+                        label = "This Week",
+                        onClick = {
+                            filterType = TransactionFilterType.WEEK
+                            selectedCustomCategory = null
+                        },
+                        modifier = Modifier.wrapContentWidth()
+                    )
+                }
+                item {
+                    FilterCard(
+                        selected = filterType == TransactionFilterType.CUSTOM,
+                        label = "Custom",
+                        onClick = { filterType = TransactionFilterType.CUSTOM },
+                        modifier = Modifier.wrapContentWidth()
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -198,11 +265,19 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 // Date pickers row
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     CustomDatePickerButton(
-                        text = "Start: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(customStart)}",
+                        text = "Start: ${
+                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                customStart
+                            )
+                        }",
                         onClick = { showCustomStartPicker = true }
                     )
                     CustomDatePickerButton(
-                        text = "End: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(customEnd)}",
+                        text = "End: ${
+                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
+                                customEnd
+                            )
+                        }",
                         onClick = { showCustomEndPicker = true }
                     )
                 }
@@ -226,7 +301,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor()
                             .clickable { expandedCategoryDropdown = true },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF56a1bf),
@@ -309,7 +383,8 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
             // Date pickers for custom filter
             if (showCustomStartPicker) {
-                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = customStart.time)
+                val datePickerState =
+                    rememberDatePickerState(initialSelectedDateMillis = customStart.time)
                 DatePickerDialog(
                     onDismissRequest = { showCustomStartPicker = false },
                     confirmButton = {
@@ -328,7 +403,8 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 ) { DatePicker(state = datePickerState) }
             }
             if (showCustomEndPicker) {
-                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = customEnd.time)
+                val datePickerState =
+                    rememberDatePickerState(initialSelectedDateMillis = customEnd.time)
                 DatePickerDialog(
                     onDismissRequest = { showCustomEndPicker = false },
                     confirmButton = {
@@ -379,42 +455,38 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 }
             }
         }
-        // Floating Action Button
-        FloatingActionButton(
-            onClick = {
-                editTransaction = null
-                showAddScreen = true
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(20.dp)
-                .size(60.dp),
-            containerColor = Color(0xFFf4c047),
-            contentColor = Color(0xFF0c1327)
-        ) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = "Add Transaction",
-                modifier = Modifier.size(30.dp)
-            )
-        }
+
     }
+
 
     if (showAddScreen) {
-        AddTransactionScreen(
-            navController = navController,
-            userViewModel = userViewModel,
-            transactionToEdit = editTransaction,
-            onTransactionDeleted = { transaction ->
-                transactionViewModel.deleteTransaction(transaction)
-                showAddScreen = false
-            },
-            onClose = { showAddScreen = false }
-        )
+        ModalBottomSheet(
+            onDismissRequest = { showAddScreen = false }
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .background(brush = Brush.verticalGradient(listOf(Indigo, IndigoLight)))
+            ) {
+                AddTransactionScreen(
+                    navController = navController,
+                    userViewModel = userViewModel,
+                    transactionToEdit = editTransaction,
+                    onTransactionDeleted = { transaction ->
+                        transactionViewModel.deleteTransaction(transaction)
+                        showAddScreen = false
+                    },
+                    onClose = { showAddScreen = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                )
+            }
+        }
     }
 }
-
-// --- Helper Composable/Functions ---
 
 @Composable
 fun FilterCard(
@@ -426,17 +498,20 @@ fun FilterCard(
     Card(
         modifier = modifier
             .height(44.dp)
-            .padding(horizontal = 4.dp)
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) Color(0xFFf4c047) else Color(0xFF291945)
+            containerColor = if (selected) Amber else Plum
         ),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+        Box(
+            contentAlignment = Alignment.Center, modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .fillMaxSize()
+        ) {
             Text(
                 text = label,
-                color = if (selected) Color(0xFF0c1327) else Color(0xFFFFFDF0),
+                color = if (selected) DeepSpaceBase else Ivory,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
                 fontFamily = SpaceMonoFont
@@ -497,15 +572,13 @@ fun getEndOfDay(date: Date): Date {
     return cal.time
 }
 
-// --- ExpenseCircle, TransactionCard, getCategoryColor, getCategoryIcon ---
-
 @Composable
 fun ExpenseCircle(
     totalSpent: Double,
-    categoryColor: Color? = null // NEW: Optional category color parameter
+    categoryColor: Color? = null
 ) {
     Box(
-        modifier = Modifier.size(160.dp),
+        modifier = Modifier.size(200.dp),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -513,7 +586,6 @@ fun ExpenseCircle(
             val radius = (size.minDimension - strokeWidth) / 2
             val center = center
 
-            // Use category color if provided, otherwise use default gradient
             if (categoryColor != null) {
                 drawCircle(
                     color = categoryColor,
@@ -524,7 +596,13 @@ fun ExpenseCircle(
             } else {
                 drawCircle(
                     brush = Brush.sweepGradient(
-                        colors = listOf(Color(0xFFf4680b), Color(0xFFf4c047), Color(0xFFb42313), Color(0xFFf45d92), Color(0xFFf4680b)),
+                        colors = listOf(
+                            Color(0xFFf4680b),
+                            Color(0xFFf4c047),
+                            Color(0xFFb42313),
+                            Color(0xFFf45d92),
+                            Color(0xFFf4680b)
+                        ),
                         center = center
                     ),
                     radius = radius,
@@ -533,6 +611,7 @@ fun ExpenseCircle(
                 )
             }
         }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -546,10 +625,11 @@ fun ExpenseCircle(
             Text(
                 text = "Expenses",
                 color = Color(0xFFF4C047),
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontFamily = SpaceMonoFont
             )
         }
+
     }
 }
 
@@ -614,8 +694,15 @@ fun TransactionCard(
                 )
             }
             Text(
-                text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${String.format("%.2f", transaction.amount)}",
-                color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(0xFFb42313),
+                text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${
+                    String.format(
+                        "%.2f",
+                        transaction.amount
+                    )
+                }",
+                color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(
+                    0xFFb42313
+                ),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = SpaceMonoFont
@@ -644,4 +731,10 @@ fun getCategoryIcon(categoryName: String): ImageVector {
         "other" -> Icons.Default.Category
         else -> Icons.Default.Category
     }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF25315E)
+@Composable
+fun TransactionsScreenPreview() {
+    SolTheme { TransactionsScreen(rememberNavController(), null) }
 }

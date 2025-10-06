@@ -11,7 +11,7 @@ import com.std.sol.entities.User
 @Dao
 interface UserDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertUser(user: User)
+    suspend fun insertUser(user: User): Long
 
     @Query("SELECT * FROM users WHERE username = :username")
     suspend fun getUserByUsername(username: String): User?
