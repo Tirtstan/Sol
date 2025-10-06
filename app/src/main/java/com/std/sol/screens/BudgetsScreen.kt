@@ -1,21 +1,15 @@
 package com.std.sol.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -29,7 +23,6 @@ import com.std.sol.Screen
 import com.std.sol.SessionManager
 import com.std.sol.components.BudgetComponent
 import com.std.sol.databases.DatabaseProvider
-import com.std.sol.entities.Budget
 import com.std.sol.entities.Category
 import com.std.sol.entities.User
 import com.std.sol.ui.theme.*
@@ -37,8 +30,6 @@ import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
-import java.text.SimpleDateFormat
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

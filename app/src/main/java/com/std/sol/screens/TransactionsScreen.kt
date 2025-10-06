@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
@@ -29,10 +28,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import android.net.Uri
+import androidx.compose.ui.graphics.vector.ImageVector
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
-import com.std.sol.components.StarryBackground
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
@@ -152,7 +151,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     if (LocalInspectionMode.current)
         expenseSum = 99999.0
 
-    // NEW: Determine circle color based on selected category
     val circleColor =
         if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
             getCategoryColor(selectedCustomCategory!!.name)
@@ -799,8 +797,15 @@ fun TransactionCard(
                 }
 
                 Text(
-                    text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${String.format("%.2f", transaction.amount)}",
-                    color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(0xFFb42313),
+                    text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${
+                        String.format(
+                            "%.2f",
+                            transaction.amount
+                        )
+                    }",
+                    color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(
+                        0xFFb42313
+                    ),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont
@@ -820,9 +825,6 @@ fun TransactionCard(
                 fontWeight = FontWeight.Bold,
                 fontFamily = SpaceMonoFont
             )
-        }
-    }
-}
 
             // Display note if available
             transaction.note?.let { note ->
@@ -832,7 +834,7 @@ fun TransactionCard(
                         text = note,
                         color = Color(0xFFFFFDF0).copy(alpha = 0.7f),
                         fontSize = 12.sp,
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        fontStyle = FontStyle.Italic,
                         fontFamily = SpaceMonoFont
                     )
                 }
@@ -840,6 +842,29 @@ fun TransactionCard(
         }
     }
 }
+
+@Composable
+fun getCategoryColor(categoryName: String): Color {
+    return when (categoryName.lowercase()) {
+        "food" -> Color(0xFF118337)
+        "fuel" -> Color(0xFF280b26)
+        "entertainment" -> Color(0xFF8f1767)
+        "other" -> Color(0xFF465be7)
+        else -> Color(0xFF465be7)
+    }
+}
+
+@Composable
+fun getCategoryIcon(categoryName: String): ImageVector {
+    return when (categoryName.lowercase()) {
+        "food" -> Icons.Default.Restaurant
+        "fuel" -> Icons.Default.LocalGasStation
+        "entertainment" -> Icons.Default.Movie
+        "other" -> Icons.Default.Category
+        else -> Icons.Default.Category
+    }
+}
+
 
 @Preview(showBackground = true, backgroundColor = 0xFF25315E)
 @Composable

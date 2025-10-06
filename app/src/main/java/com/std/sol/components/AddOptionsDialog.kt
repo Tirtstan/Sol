@@ -10,12 +10,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.std.sol.ui.theme.Indigo
+import com.std.sol.ui.theme.IndigoLight
+import com.std.sol.ui.theme.SolTheme
 import com.std.sol.ui.theme.SpaceMonoFont
 
 @Composable
@@ -28,10 +34,18 @@ fun AddOptionsDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = RoundedCornerShape(20.dp),
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Indigo,
+                            IndigoLight
+                        )
+                    )
+                ),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF291945)
+                containerColor = Color.Transparent
             )
         ) {
             Column(
@@ -41,7 +55,7 @@ fun AddOptionsDialog(
                 Text(
                     text = "ADD NEW",
                     color = Color(0xFFFFFDF0),
-                    fontSize = 18.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont
                 )
@@ -73,18 +87,7 @@ fun AddOptionsDialog(
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // Cancel Button
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "Cancel",
-                        color = Color(0xFFF4C047),
-                        fontFamily = SpaceMonoFont
-                    )
-                }
+                SpaceButton(text = "Cancel", onClick = onDismiss)
             }
         }
     }
@@ -156,4 +159,10 @@ fun AddOptionItem(
             )
         }
     }
+}
+
+@Preview
+@Composable
+fun AddOptionsDialogPreview() {
+    SolTheme { AddOptionsDialog(onDismiss = { }, onAddTransaction = { }, onAddCategory = { }) }
 }

@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,6 +38,7 @@ import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.SessionManager
+import androidx.core.graphics.toColorInt
 
 @Composable
 fun AddCategoryScreen(
@@ -61,8 +61,12 @@ fun AddCategoryScreen(
 
     // STATE (pre-filled in edit mode)
     var categoryName by remember { mutableStateOf(categoryToEdit?.name ?: "") }
-    var selectedColor by remember { mutableStateOf(categoryToEdit?.color?.let { Color(android.graphics.Color.parseColor(it)) } ?: predefinedColors[0]) }
-    var selectedIcon by remember { mutableStateOf(categoryToEdit?.icon?.let { getIconFromString(it) } ?: predefinedIcons[0]) }
+    var selectedColor by remember {
+        mutableStateOf(categoryToEdit?.color?.let { Color(it.toColorInt()) } ?: predefinedColors[0])
+    }
+    var selectedIcon by remember {
+        mutableStateOf(categoryToEdit?.icon?.let { getIconFromString(it) } ?: predefinedIcons[0])
+    }
 
     val scrollState = rememberScrollState()
 
@@ -205,7 +209,9 @@ fun AddCategoryScreen(
                             modifier = Modifier
                                 .size(48.dp)
                                 .background(
-                                    if (selectedIcon == icon) Color(0xFF3a5c85) else Color.White.copy(alpha = 0.1f),
+                                    if (selectedIcon == icon) Color(0xFF3a5c85) else Color.White.copy(
+                                        alpha = 0.1f
+                                    ),
                                     RoundedCornerShape(12.dp)
                                 )
                                 .border(

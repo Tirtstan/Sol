@@ -310,13 +310,14 @@ fun AppNavHost(
             val budgetId = backStackEntry.arguments?.getInt("budgetId") ?: 0
             AddEditBudgetScreen(navController, userId, budgetId)
         }
-       
-          composable("add_category") {
+
+        composable("add_category") {
             AddCategoryScreen(
                 navController = navController,
                 userViewModel = userViewModel,
                 onClose = { navController.navigateUp() }
             )
+        }
     }
 }
 
