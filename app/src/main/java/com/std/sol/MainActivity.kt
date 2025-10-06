@@ -14,10 +14,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContent
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.safeGestures
-import androidx.compose.foundation.layout.waterfall
+// import androidx.compose.foundation.layout.safeContent
+// import androidx.compose.foundation.layout.safeDrawing
+// import androidx.compose.foundation.layout.safeGestures
+// import androidx.compose.foundation.layout.waterfall
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,11 +33,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.std.sol.screens.AddEditBudgetScreen
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.screens.BudgetsScreen
 import com.std.sol.screens.DashboardScreen
@@ -44,6 +49,7 @@ import com.std.sol.screens.LoginScreen
 import com.std.sol.screens.MoreScreen
 import com.std.sol.screens.RegisterScreen
 import com.std.sol.screens.TransactionsScreen
+import com.std.sol.screens.WelcomeScreen
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
@@ -53,37 +59,94 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            Main()
+            MainApp()
         }
     }
 }
 
 @Composable
-fun Main() {
+fun MainApp() {
     SolTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFF0B1426)
         ) {
             val context = LocalContext.current
-            val viewModelFactory = ViewModelFactory(
+           /* val viewModelFactory = ViewModelFactory(
                 DatabaseProvider.getDatabase(context.applicationContext),
                 SessionManager(context.applicationContext)
             )
-            val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
-            val isLoading by userViewModel.isLoading.collectAsState()
+            */
+            val db = remember { DatabaseProvider.getDatabase(context.applicationContext) }
+            val sessionManager = remember { SessionManager(context.applicationContext) }
+            val factory = remember { ViewModelFactory(db, sessionManager) }
+            val userViewModel: UserViewModel = viewModel(factory = factory)
 
-            if (isLoading && !LocalInspectionMode.current) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+            val isLoading by userViewModel.isLoading.collectAsState()
+            val currentUser by userViewModel.currentUser.collectAsState()
+
+            val navController = rememberNavController()
+
+            //helper method, determine initial route once loading is complete
+            LaunchedEffect(isLoading) {
+                if(!isLoading) {
+                    val startRoute = if (currentUser != null) {
+                        Screen.Dashboard.route
+                    } else {
+                        Screen.Welcome.route
+                    }
+                    if (navController.currentDestination?.route == null) {
+                        navController.navigate(startRoute) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true}
+                            launchSingleTop = true
+                        }
+                    }
                 }
-            } else {
-                App(userViewModel)
+            }
+
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else {
+                    AppContent(navController, userViewModel)
+                }
             }
         }
     }
 }
 
+@Composable
+fun AppContent(navController: NavHostController, userViewModel: UserViewModel) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val mainScreens = listOf(
+        Screen.Dashboard.route,
+        Screen.Transactions.route,
+        Screen.Budgets.route,
+        Screen.More.route
+    )
+    val showBottomBar = currentRoute in mainScreens
+
+    Scaffold (
+        bottomBar = {
+            if (showBottomBar) {
+                BottomNavigationBar(navController)
+            }
+        },
+        contentWindowInsets = WindowInsets.navigationBars
+    ) { innerPadding ->
+        AppNavHost(
+            navController = navController,
+            userViewModel = userViewModel,
+            startDestination = "loading_placeholder",
+            modifier = Modifier.padding(innerPadding)
+        )
+    }
+}
+/*
 @Composable
 fun App(userViewModel: UserViewModel) {
     val navController = rememberNavController()
@@ -137,6 +200,8 @@ fun App(userViewModel: UserViewModel) {
     }
 }
 
+ */
+
 @Composable
 fun AppNavHost(
     navController: NavHostController,
@@ -149,6 +214,12 @@ fun AppNavHost(
         startDestination = startDestination,
         modifier = modifier
     ) {
+        composable("loading_placeholder") {
+            Box(Modifier.fillMaxSize())
+        }
+
+        composable(Screen.Welcome.route) { WelcomeScreen(navController) }
+
         composable(
             Screen.Register.route,
             enterTransition = {
@@ -190,11 +261,28 @@ fun AppNavHost(
         composable(Screen.Transactions.route) { TransactionsScreen(navController, userViewModel) }
         composable(Screen.Budgets.route) { BudgetsScreen(navController, userViewModel) }
         composable(Screen.More.route) { MoreScreen(navController, userViewModel) }
+
+        composable (
+            route = Screen.AddEditBudget.route + "/{budgetId}",
+            arguments = listOf(navArgument("budgetId") {
+                type = NavType.IntType
+                defaultValue = 0
+            }),
+            enterTransition = {
+                slideInVertically (initialOffsetY = { it }, animationSpec = tween(300))
+            },
+            exitTransition = {
+                slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300))
+            }
+        ) { backStackEntry ->
+            val budgetId = backStackEntry.arguments?.getInt("budgetId") ?: 0
+            AddEditBudgetScreen(navController, userViewModel, budgetId)
+        }
     }
 }
 
 @Preview
 @Composable
 fun MainPreview() {
-    Main()
+    MainApp()
 }

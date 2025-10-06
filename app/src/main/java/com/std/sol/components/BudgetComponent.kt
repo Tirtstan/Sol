@@ -1,6 +1,5 @@
 package com.std.sol.components
 
-import android.graphics.Paint
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -14,7 +13,6 @@ import com.std.sol.ui.theme.Leaf
 import com.std.sol.ui.theme.SpaceMonoFont
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.Date
 import androidx.compose.ui.text.font.FontWeight
 import com.std.sol.ui.theme.Ocean
 
