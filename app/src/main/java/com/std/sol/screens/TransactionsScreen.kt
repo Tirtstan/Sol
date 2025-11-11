@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
@@ -68,18 +70,13 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }
     val userId = user?.id ?: -1
 
-    // Filtering state
     var filterType by remember { mutableStateOf(TransactionFilterType.RECENTS) }
     var customStart by remember { mutableStateOf(getStartOfDay(Date())) }
     var customEnd by remember { mutableStateOf(getEndOfDay(Date())) }
     var showCustomStartPicker by remember { mutableStateOf(false) }
     var showCustomEndPicker by remember { mutableStateOf(false) }
-
-    // NEW: Category filter state
-    var selectedCustomCategory by remember { mutableStateOf<Category?>(null) }
+    var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var expandedCategoryDropdown by remember { mutableStateOf(false) }
-
-    // NEW: Image preview state
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var showImagePreview by remember { mutableStateOf(false) }
 
@@ -122,7 +119,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         TransactionFilterType.CUSTOM -> Pair(customStart, customEnd)
     }
 
-    // All transactions in the period
     val allTransactions by transactionViewModel.getTransactionsByPeriod(
         userId,
         queryStart,
@@ -132,20 +128,31 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     val categories by categoryViewModel.getAllCategories(userId)
         .collectAsState(initial = emptyList())
 
-    // Filter transactions by category if custom filter is selected and category is chosen
-    val filteredTransactions =
-        if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
-            allTransactions.filter { it.categoryId == selectedCustomCategory!!.id }
-        } else {
-            allTransactions
-        }
+    // Apply category filter to all transactions (works in all filter modes)
+    val filteredTransactions = if (selectedCategory != null) {
+        allTransactions.filter { it.categoryId == selectedCategory!!.id }
+    } else {
+        allTransactions
+    }
 
-    // Group or filter transactions as needed
+    // Validate custom date range
+    val validCustomRange = if (filterType == TransactionFilterType.CUSTOM) {
+        customStart <= customEnd
+    } else {
+        true
+    }
+
     val groupedTransactions = when (filterType) {
-        TransactionFilterType.RECENTS -> groupTransactionsByDay(allTransactions)
-        TransactionFilterType.MONTH -> groupTransactionsByDay(allTransactions)
-        TransactionFilterType.WEEK -> groupTransactionsByDay(allTransactions)
-        TransactionFilterType.CUSTOM -> mapOf("" to filteredTransactions.sortedByDescending { it.date })
+        TransactionFilterType.RECENTS -> groupTransactionsByDay(filteredTransactions)
+        TransactionFilterType.MONTH -> groupTransactionsByDay(filteredTransactions)
+        TransactionFilterType.WEEK -> groupTransactionsByDay(filteredTransactions)
+        TransactionFilterType.CUSTOM -> {
+            if (validCustomRange) {
+                groupTransactionsByDay(filteredTransactions)
+            } else {
+                mapOf("Invalid Date Range" to emptyList<Transaction>())
+            }
+        }
     }
     var expenseSum =
         filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
@@ -153,13 +160,12 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         expenseSum = 99999.0
 
     val circleColor =
-        if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
-            getCategoryColor(selectedCustomCategory!!.name)
+        if (selectedCategory != null) {
+            getCategoryColor(selectedCategory!!.name)
         } else {
             null // Use default gradient
         }
 
-    // New state for adding and editing
     var showAddScreen by remember { mutableStateOf(false) }
     var editTransaction by remember { mutableStateOf<Transaction?>(null) }
 
@@ -167,123 +173,105 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         containerColor = Color.Transparent,
     ) { innerPadding ->
 
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(20.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "TRANSACTIONS",
-                    color = Color(0xFFFFFDF0),
-                    fontSize = 28.sp,
-                    fontFamily = SpaceMonoFont,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
-                contentAlignment = Alignment.Center
-            ) {
-                ExpenseCircle(
-                    totalSpent = expenseSum,
-                    categoryColor = circleColor
-                )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            LazyRow(
-                modifier = Modifier
-                    .height(44.dp),
-                contentPadding = PaddingValues(start = 4.dp, end = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                item {
-                    FilterCard(
-                        selected = filterType == TransactionFilterType.RECENTS,
-                        label = "Recent",
-                        onClick = {
-                            filterType = TransactionFilterType.RECENTS
-                            selectedCustomCategory = null // Reset category filter
-                        },
-                        modifier = Modifier.wrapContentWidth()
-                    )
-                }
-                item {
-                    FilterCard(
-                        selected = filterType == TransactionFilterType.MONTH,
-                        label = "This Month",
-                        onClick = {
-                            filterType = TransactionFilterType.MONTH
-                            selectedCustomCategory = null // Reset category filter
-                        },
-                        modifier = Modifier.wrapContentWidth()
-                    )
-                }
-                item {
-                    FilterCard(
-                        selected = filterType == TransactionFilterType.WEEK,
-                        label = "This Week",
-                        onClick = {
-                            filterType = TransactionFilterType.WEEK
-                            selectedCustomCategory = null
-                        },
-                        modifier = Modifier.wrapContentWidth()
-                    )
-                }
-                item {
-                    FilterCard(
-                        selected = filterType == TransactionFilterType.CUSTOM,
-                        label = "Custom",
-                        onClick = { filterType = TransactionFilterType.CUSTOM },
-                        modifier = Modifier.wrapContentWidth()
+            // Title
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Transactions",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontStyle = FontStyle.Italic
+                        ),
+                        color = Color(0xFFFFFDF0),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(18.dp))
 
-            // Custom date pickers and category selector
-            if (filterType == TransactionFilterType.CUSTOM) {
-                // Date pickers row
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    CustomDatePickerButton(
-                        text = "Start: ${
-                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                customStart
-                            )
-                        }",
-                        onClick = { showCustomStartPicker = true }
-                    )
-                    CustomDatePickerButton(
-                        text = "End: ${
-                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                customEnd
-                            )
-                        }",
-                        onClick = { showCustomEndPicker = true }
+            // Expense Circle Chart
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ExpenseCircle(
+                        totalSpent = expenseSum,
+                        categoryColor = circleColor
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(12.dp))
+            // Filter buttons
+            item {
+                LazyRow(
+                    modifier = Modifier.height(44.dp),
+                    contentPadding = PaddingValues(start = 4.dp, end = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    item {
+                        FilterCard(
+                            selected = filterType == TransactionFilterType.RECENTS,
+                            label = "Recent",
+                            onClick = {
+                                filterType = TransactionFilterType.RECENTS
+                            },
+                            modifier = Modifier.wrapContentWidth()
+                        )
+                    }
+                    item {
+                        FilterCard(
+                            selected = filterType == TransactionFilterType.MONTH,
+                            label = "This Month",
+                            onClick = {
+                                filterType = TransactionFilterType.MONTH
+                            },
+                            modifier = Modifier.wrapContentWidth()
+                        )
+                    }
+                    item {
+                        FilterCard(
+                            selected = filterType == TransactionFilterType.WEEK,
+                            label = "This Week",
+                            onClick = {
+                                filterType = TransactionFilterType.WEEK
+                            },
+                            modifier = Modifier.wrapContentWidth()
+                        )
+                    }
+                    item {
+                        FilterCard(
+                            selected = filterType == TransactionFilterType.CUSTOM,
+                            label = "Custom",
+                            onClick = { filterType = TransactionFilterType.CUSTOM },
+                            modifier = Modifier.wrapContentWidth()
+                        )
+                    }
+                }
+            }
 
-                // UPDATED: Category selector dropdown with entity colors and icons
+            // Category filter - available in all modes
+            item {
                 ExposedDropdownMenuBox(
                     expanded = expandedCategoryDropdown,
-                    onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }
+                    onExpandedChange = { expandedCategoryDropdown = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedCustomCategory?.name ?: "All Categories",
+                        value = selectedCategory?.name ?: "All Categories",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Filter by Category", color = Color(0xFFFFFDF0)) },
@@ -294,7 +282,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { expandedCategoryDropdown = true },
+                            .menuAnchor(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF56a1bf),
                             unfocusedBorderColor = Color(0xFFFFFDF0),
@@ -309,7 +297,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         expanded = expandedCategoryDropdown,
                         onDismissRequest = { expandedCategoryDropdown = false }
                     ) {
-                        // "All Categories" option
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -334,12 +321,11 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                                 }
                             },
                             onClick = {
-                                selectedCustomCategory = null
+                                selectedCategory = null
                                 expandedCategoryDropdown = false
                             }
                         )
 
-                        // Individual categories
                         categories.forEach { category ->
                             DropdownMenuItem(
                                 text = {
@@ -365,7 +351,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                                     }
                                 },
                                 onClick = {
-                                    selectedCustomCategory = category
+                                    selectedCategory = category
                                     expandedCategoryDropdown = false
                                 }
                             )
@@ -374,88 +360,188 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 }
             }
 
-            // Date pickers for custom filter
-            if (showCustomStartPicker) {
-                val datePickerState =
-                    rememberDatePickerState(initialSelectedDateMillis = customStart.time)
-                DatePickerDialog(
-                    onDismissRequest = { showCustomStartPicker = false },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                datePickerState.selectedDateMillis?.let {
-                                    customStart = getStartOfDay(Date(it))
-                                }
-                                showCustomStartPicker = false
-                            }
-                        ) { Text("OK") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showCustomStartPicker = false }) { Text("Cancel") }
-                    }
-                ) { DatePicker(state = datePickerState) }
-            }
-            if (showCustomEndPicker) {
-                val datePickerState =
-                    rememberDatePickerState(initialSelectedDateMillis = customEnd.time)
-                DatePickerDialog(
-                    onDismissRequest = { showCustomEndPicker = false },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                datePickerState.selectedDateMillis?.let {
-                                    customEnd = getEndOfDay(Date(it))
-                                }
-                                showCustomEndPicker = false
-                            }
-                        ) { Text("OK") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showCustomEndPicker = false }) { Text("Cancel") }
-                    }
-                ) { DatePicker(state = datePickerState) }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Transactions List with group headers
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                groupedTransactions.forEach { (header, txns) ->
-                    if (header.isNotBlank()) {
-                        item {
+            // Custom date range picker - only shown in CUSTOM mode, simplified
+            if (filterType == TransactionFilterType.CUSTOM) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(
+                            onClick = { showCustomStartPicker = true },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF465be7),
+                                contentColor = Color(0xFFFFFDF0)
+                            ),
+                            modifier = Modifier.height(38.dp)
+                        ) {
                             Text(
-                                text = header,
-                                color = Color(0xFFf4c047),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                modifier = Modifier.padding(vertical = 5.dp, horizontal = 2.dp)
+                                "Start: ${SimpleDateFormat("MMM dd", Locale.getDefault()).format(customStart)}",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                        Button(
+                            onClick = { showCustomEndPicker = true },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF465be7),
+                                contentColor = Color(0xFFFFFDF0)
+                            ),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Text(
+                                "End: ${SimpleDateFormat("MMM dd", Locale.getDefault()).format(customEnd)}",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             )
                         }
                     }
-                    items(txns) { transaction ->
-                        TransactionCard(
-                            transaction = transaction,
-                            category = categories.find { it.id == transaction.categoryId },
-                            onEdit = {
-                                editTransaction = transaction
-                                showAddScreen = true
-                            },
-                            onImageClick = { imageUri ->
-                                selectedImageUri = imageUri
-                                showImagePreview = true
-                            }
+                }
+
+                // Validation error message
+                if (!validCustomRange) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFb42313),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Start date must be before end date",
+                                fontSize = 12.sp,
+                                color = Color(0xFFb42313),
+                                fontStyle = FontStyle.Italic
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Transactions list
+            groupedTransactions.forEach { (header, txns) ->
+                if (header.isNotBlank()) {
+                    item {
+                        Text(
+                            text = header,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Normal,
+                            fontFamily = SpaceMonoFont,
+                            color = Color(0xFFf4c047),
+                            modifier = Modifier.padding(vertical = 5.dp, horizontal = 2.dp)
                         )
                     }
+                }
+                items(txns) { transaction ->
+                    TransactionCard(
+                        transaction = transaction,
+                        category = categories.find { it.id == transaction.categoryId },
+                        onEdit = {
+                            editTransaction = transaction
+                            showAddScreen = true
+                        },
+                        onImageClick = { imageUri ->
+                            selectedImageUri = imageUri
+                            showImagePreview = true
+                        }
+                    )
                 }
             }
         }
 
     }
 
-    // Image Preview Dialog
+    // Date picker dialogs
+    if (showCustomStartPicker) {
+        val datePickerState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = customStart.time,
+                yearRange = IntRange(2020, 2100)
+            )
+        DatePickerDialog(
+            onDismissRequest = { showCustomStartPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let {
+                            val newStart = getStartOfDay(Date(it))
+                            customStart = newStart
+                            // Auto-adjust end date if it's before start date
+                            if (customEnd < newStart) {
+                                customEnd = getEndOfDay(newStart)
+                            }
+                        }
+                        showCustomStartPicker = false
+                    }
+                ) { 
+                    Text(
+                        "OK",
+                        color = Color(0xFF56a1bf),
+                        fontWeight = FontWeight.SemiBold
+                    ) 
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomStartPicker = false }) { 
+                    Text(
+                        "Cancel",
+                        color = Color(0xFFFFFDF0)
+                    ) 
+                }
+            }
+        ) { DatePicker(state = datePickerState) }
+    }
+    if (showCustomEndPicker) {
+        val datePickerState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = customEnd.time,
+                yearRange = IntRange(2020, 2100)
+            )
+        DatePickerDialog(
+            onDismissRequest = { showCustomEndPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let {
+                            val newEnd = getEndOfDay(Date(it))
+                            customEnd = newEnd
+                            // Auto-adjust start date if it's after end date
+                            if (customStart > newEnd) {
+                                customStart = getStartOfDay(newEnd)
+                            }
+                        }
+                        showCustomEndPicker = false
+                    }
+                ) { 
+                    Text(
+                        "OK",
+                        color = Color(0xFF56a1bf),
+                        fontWeight = FontWeight.SemiBold
+                    ) 
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomEndPicker = false }) { 
+                    Text(
+                        "Cancel",
+                        color = Color(0xFFFFFDF0)
+                    ) 
+                }
+            }
+        ) { DatePicker(state = datePickerState) }
+    }
+
     if (showImagePreview && selectedImageUri != null) {
         ImagePreviewDialog(
             imageUri = selectedImageUri!!,
@@ -467,35 +553,56 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }
 
     if (showAddScreen) {
+        val sheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = false
+        )
+        
         ModalBottomSheet(
-            onDismissRequest = { showAddScreen = false }
+            onDismissRequest = { showAddScreen = false },
+            sheetState = sheetState,
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(
+                            Color.White.copy(alpha = 0.3f),
+                            RoundedCornerShape(2.dp)
+                        )
+                )
+            },
+            containerColor = Color.Transparent
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                     .background(brush = Brush.verticalGradient(listOf(Indigo, IndigoLight)))
             ) {
-                AddTransactionScreen(
-                    navController = navController,
-                    userViewModel = userViewModel,
-                    transactionToEdit = editTransaction,
-                    onTransactionDeleted = { transaction ->
-                        transactionViewModel.deleteTransaction(transaction)
-                        showAddScreen = false
-                    },
-                    onClose = { showAddScreen = false },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                )
+                Column {
+                    AddTransactionScreen(
+                        navController = navController,
+                        userViewModel = userViewModel,
+                        transactionToEdit = editTransaction,
+                        onTransactionDeleted = { transaction ->
+                            transactionViewModel.deleteTransaction(transaction)
+                            showAddScreen = false
+                        },
+                        onClose = { showAddScreen = false },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight()
+                    )
+                    // Add bottom padding for safe area
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         }
     }
 }
 
-// NEW: Image Preview Dialog
 @Composable
 fun ImagePreviewDialog(
     imageUri: Uri,
@@ -519,8 +626,10 @@ fun ImagePreviewDialog(
                 ) {
                     Text(
                         text = "Transaction Image",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                     IconButton(onClick = onDismiss) {
                         Icon(
@@ -573,29 +682,16 @@ fun FilterCard(
         ) {
             Text(
                 text = label,
-                color = if (selected) DeepSpaceBase else Ivory,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                fontFamily = SpaceMonoFont
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = if (selected) DeepSpaceBase else Ivory
             )
         }
     }
 }
 
-@Composable
-fun CustomDatePickerButton(text: String, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF465be7),
-            contentColor = Color(0xFFFFFDF0)
-        ),
-        modifier = Modifier.height(38.dp)
-    ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
 
 fun groupTransactionsByDay(transactions: List<Transaction>): Map<String, List<Transaction>> {
     val now = Calendar.getInstance()
@@ -679,16 +775,19 @@ fun ExpenseCircle(
         ) {
             Text(
                 text = "R${String.format("%.2f", totalSpent)}",
-                color = Color(0xFFFFFDF0),
                 fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = SpaceMonoFont
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = SpaceMonoFont,
+                color = Color(0xFFFFFDF0)
             )
             Text(
                 text = "Expenses",
-                color = Color(0xFFF4C047),
-                fontSize = 12.sp,
-                fontFamily = SpaceMonoFont
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal,
+                    fontStyle = FontStyle.Italic
+                ),
+                color = Color(0xFFF4C047)
             )
         }
 
@@ -700,7 +799,7 @@ fun TransactionCard(
     transaction: Transaction,
     category: Category?,
     onEdit: () -> Unit,
-    onImageClick: (Uri) -> Unit = {} // NEW: Callback for image click
+    onImageClick: (Uri) -> Unit = {}
 ) {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     Card(
@@ -745,23 +844,23 @@ fun TransactionCard(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = transaction.name.uppercase(),
-                        color = Color(0xFFFFFDF0),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = SpaceMonoFont
+                        text = transaction.name,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = Color(0xFFFFFDF0)
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = dateFormat.format(transaction.date),
-                        color = Color(0xFFF4C047),
-                        fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        fontFamily = SpaceMonoFont
+                        fontWeight = FontWeight.Normal,
+                        fontFamily = SpaceMonoFont,
+                        color = Color(0xFFF4C047)
                     )
                 }
 
-                // NEW: Image icon if image exists
                 transaction.imagePath?.let { imagePath ->
                     IconButton(
                         onClick = {
@@ -786,39 +885,25 @@ fun TransactionCard(
                             transaction.amount
                         )
                     }",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = SpaceMonoFont,
                     color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(
                         0xFFb42313
-                    ),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont
+                    )
                 )
             }
-            Text(
-                text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${
-                    String.format(
-                        "%.2f",
-                        transaction.amount
-                    )
-                }",
-                color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(
-                    0xFFb42313
-                ),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = SpaceMonoFont
-            )
 
-            // Display note if available
             transaction.note?.let { note ->
                 if (note.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = note,
-                        color = Color(0xFFFFFDF0).copy(alpha = 0.7f),
-                        fontSize = 12.sp,
-                        fontStyle = FontStyle.Italic,
-                        fontFamily = SpaceMonoFont
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 12.sp,
+                            fontStyle = FontStyle.Italic
+                        ),
+                        color = Color(0xFFFFFDF0).copy(alpha = 0.7f)
                     )
                 }
             }

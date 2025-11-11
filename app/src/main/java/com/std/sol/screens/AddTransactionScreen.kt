@@ -36,6 +36,7 @@ import coil.compose.AsyncImage
 import com.std.sol.SessionManager
 import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
+import com.std.sol.components.CategoryDropdown
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
@@ -75,7 +76,6 @@ fun AddTransactionScreen(
     }
     val userId = user?.id ?: return
 
-    // STATE (pre-filled in edit mode)
     var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var transactionName by remember { mutableStateOf(transactionToEdit?.name ?: "") }
     var selectedType by remember {
@@ -88,13 +88,11 @@ fun AddTransactionScreen(
     var selectedDate by remember { mutableStateOf(transactionToEdit?.date ?: Date()) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    var expandedCategory by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf(transactionToEdit?.imagePath?.toUri()) }
 
     val categories by categoryViewModel.getAllCategories(userId)
         .collectAsState(initial = emptyList())
 
-    // Set default category or one corresponding to edit transaction
     LaunchedEffect(categories, transactionToEdit) {
         if (selectedCategory == null && categories.isNotEmpty()) {
             selectedCategory =
@@ -116,7 +114,6 @@ fun AddTransactionScreen(
         }
     }
 
-    // ---- TIME PICKER STATE ----
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val calendar = Calendar.getInstance().apply { time = selectedDate }
     val timePickerState = rememberTimePickerState(
@@ -125,9 +122,6 @@ fun AddTransactionScreen(
         is24Hour = true
     )
 
-    // ---- DIALOGS ----
-
-    // Date Picker Dialog
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -246,7 +240,6 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Transaction Type Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -267,7 +260,6 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Amount Input
             SpaceTextField(
                 value = amount,
                 onValueChange = { newValue ->
@@ -284,7 +276,6 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Transaction Name
             SpaceTextField(
                 value = transactionName,
                 onValueChange = { transactionName = it },
@@ -295,73 +286,17 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            ExposedDropdownMenuBox(
-                expanded = expandedCategory,
-                onExpandedChange = { expandedCategory = !expandedCategory }
-            ) {
-                val fillMaxWidth = Modifier
-                    .fillMaxWidth()
-                OutlinedTextField(
-                    value = selectedCategory?.name ?: "Select Category",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = {
-                        Text(
-                            text = "Category",
-                            style = TextStyle(fontFamily = SpaceMonoFont, color = Ivory)
-                        )
-                    },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
-                    modifier = fillMaxWidth
-                        .clickable { expandedCategory = true },
-                    textStyle = TextStyle(fontFamily = InterFont, color = Color.White)
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedCategory,
-                    onDismissRequest = { expandedCategory = false }
-                ) {
-                    categories.forEach { category ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .background(
-                                                getCategoryColor(category.name),
-                                                CircleShape
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = getCategoryIcon(category.name),
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        category.name,
-                                        style = TextStyle(
-                                            fontFamily = InterFont,
-                                            color = Color.White
-                                        )
-                                    )
-                                }
-                            },
-                            onClick = {
-                                selectedCategory = category
-                                expandedCategory = false
-                            }
-                        )
-                    }
-                }
-            }
+            CategoryDropdown(
+                categories = categories,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { category ->
+                    selectedCategory = category
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Image Picker Row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -403,7 +338,6 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Date and Time Selection
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -469,7 +403,6 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Note Field
             SpaceTextField(
                 value = note,
                 onValueChange = { note = it },
@@ -480,7 +413,6 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Save & Delete Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)

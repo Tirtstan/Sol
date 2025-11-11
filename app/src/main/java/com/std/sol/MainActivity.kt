@@ -4,6 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -125,7 +128,6 @@ fun App(userViewModel: UserViewModel) {
     )
     val showBottomBar = currentRoute in mainScreens
 
-    // Add options dialog state
     var showAddOptionsDialog by remember { mutableStateOf(false) }
 
     val targetGradient = if (currentRoute in authScreens) AuthGradient else MoreScreenGradient
@@ -138,7 +140,6 @@ fun App(userViewModel: UserViewModel) {
         ).value
     }
 
-    // This effect handles the initial navigation logic
     LaunchedEffect(currentUser) {
         val startRoute = if (currentUser != null) Screen.Dashboard.route else Screen.Register.route
         navController.navigate(startRoute) {
@@ -180,7 +181,6 @@ fun App(userViewModel: UserViewModel) {
         Scaffold(
             bottomBar = {
                 if (showBottomBar) {
-                    // UPDATED: Use BottomNavigationBarWithFAB instead of BottomNavigationBar
                     BottomNavigationBarWithFAB(
                         navController = navController,
                         onAddClick = { showAddOptionsDialog = true }
@@ -197,7 +197,6 @@ fun App(userViewModel: UserViewModel) {
         }
     }
 
-    // Add Options Dialog
     if (showAddOptionsDialog) {
         AddOptionsDialog(
             onDismiss = { showAddOptionsDialog = false },
@@ -205,8 +204,10 @@ fun App(userViewModel: UserViewModel) {
                 navController.navigate("add_transaction")
             },
             onAddCategory = {
-                // For now, navigate to add transaction (you can create AddCategoryScreen later)
                 navController.navigate("add_category")
+            },
+            onAddBudget = {
+                navController.navigate("${Screen.AddEditBudget.route}/0")
             }
         )
     }
@@ -220,6 +221,15 @@ fun AppNavHost(
 ) {
     val animationSpec1 = tween<IntOffset>(durationMillis = 300)
     val animationSpec2 = tween<Float>(durationMillis = 300)
+
+    val screenOrder = mapOf(
+        Screen.Dashboard.route to 0,
+        Screen.Transactions.route to 1,
+        Screen.Budgets.route to 2,
+        Screen.More.route to 3
+    )
+
+    fun getScreenOrder(route: String?): Int = screenOrder[route] ?: -1
 
     NavHost(
         navController = navController,
@@ -245,45 +255,61 @@ fun AppNavHost(
             exitTransition = { authExitTransition }
         ) { LoginScreen(navController, userViewModel) }
 
-        val mainEnterTransition =
-            slideInHorizontally(animationSpec = animationSpec1) { it } + fadeIn(animationSpec2)
-        val mainExitTransition =
-            slideOutHorizontally(animationSpec = animationSpec1) { -it } + fadeOut(animationSpec2)
-        val mainPopEnterTransition =
-            slideInHorizontally(animationSpec = animationSpec1) { -it } + fadeIn(animationSpec2)
-        val mainPopExitTransition =
-            slideOutHorizontally(animationSpec = animationSpec1) { it } + fadeOut(animationSpec2)
+        fun createMainEnterTransition(isPop: Boolean): AnimatedContentTransitionScope<androidx.navigation.NavBackStackEntry>.() -> EnterTransition? = {
+            val fromOrder = getScreenOrder(initialState.destination.route)
+            val toOrder = getScreenOrder(targetState.destination.route)
+            val isMovingForward = if (isPop) toOrder < fromOrder else toOrder > fromOrder
+            slideInHorizontally(
+                animationSpec = animationSpec1,
+                initialOffsetX = { fullWidth -> if (isMovingForward) fullWidth else -fullWidth }
+            ) + fadeIn(animationSpec2)
+        }
+
+        fun createMainExitTransition(isPop: Boolean): AnimatedContentTransitionScope<androidx.navigation.NavBackStackEntry>.() -> ExitTransition? = {
+            val fromOrder = getScreenOrder(initialState.destination.route)
+            val toOrder = getScreenOrder(targetState.destination.route)
+            val isMovingForward = if (isPop) toOrder < fromOrder else toOrder > fromOrder
+            slideOutHorizontally(
+                animationSpec = animationSpec1,
+                targetOffsetX = { fullWidth -> if (isMovingForward) -fullWidth else fullWidth }
+            ) + fadeOut(animationSpec2)
+        }
+
+        val getMainEnterTransition = createMainEnterTransition(false)
+        val getMainExitTransition = createMainExitTransition(false)
+        val getMainPopEnterTransition = createMainEnterTransition(true)
+        val getMainPopExitTransition = createMainExitTransition(true)
 
         composable(
             route = Screen.Dashboard.route,
-            enterTransition = { mainEnterTransition },
-            exitTransition = { mainExitTransition },
-            popEnterTransition = { mainPopEnterTransition },
-            popExitTransition = { mainPopExitTransition }
+            enterTransition = getMainEnterTransition,
+            exitTransition = getMainExitTransition,
+            popEnterTransition = getMainPopEnterTransition,
+            popExitTransition = getMainPopExitTransition
         ) { DashboardScreen(navController, userViewModel) }
 
         composable(
             route = Screen.Transactions.route,
-            enterTransition = { mainEnterTransition },
-            exitTransition = { mainExitTransition },
-            popEnterTransition = { mainPopEnterTransition },
-            popExitTransition = { mainPopExitTransition }
+            enterTransition = getMainEnterTransition,
+            exitTransition = getMainExitTransition,
+            popEnterTransition = getMainPopEnterTransition,
+            popExitTransition = getMainPopExitTransition
         ) { TransactionsScreen(navController, userViewModel) }
 
         composable(
             route = Screen.Budgets.route,
-            enterTransition = { mainEnterTransition },
-            exitTransition = { mainExitTransition },
-            popEnterTransition = { mainPopEnterTransition },
-            popExitTransition = { mainPopExitTransition }
+            enterTransition = getMainEnterTransition,
+            exitTransition = getMainExitTransition,
+            popEnterTransition = getMainPopEnterTransition,
+            popExitTransition = getMainPopExitTransition
         ) { BudgetsScreen(navController, userViewModel) }
 
         composable(
             route = Screen.More.route,
-            enterTransition = { mainEnterTransition },
-            exitTransition = { mainExitTransition },
-            popEnterTransition = { mainPopEnterTransition },
-            popExitTransition = { mainPopExitTransition }
+            enterTransition = getMainEnterTransition,
+            exitTransition = getMainExitTransition,
+            popEnterTransition = getMainPopEnterTransition,
+            popExitTransition = getMainPopExitTransition
         ) { MoreScreen(navController, userViewModel) }
 
         composable(
@@ -296,18 +322,21 @@ fun AppNavHost(
         ) { AddTransactionScreen(navController, userViewModel) }
 
         composable(
-            route = "${Screen.AddEditBudget.route}/{userId}/{budgetId}",
+            route = "${Screen.AddEditBudget.route}/{budgetId}",
             arguments = listOf(
-                navArgument("userId") { type = NavType.IntType },
                 navArgument("budgetId") { type = NavType.IntType }),
-            enterTransition = { mainEnterTransition },
-            exitTransition = { mainExitTransition },
-            popEnterTransition = { mainPopEnterTransition },
-            popExitTransition = { mainPopExitTransition }
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { 300 }, animationSpec = animationSpec1
+                ) + fadeIn(animationSpec2)
+            },
+            exitTransition = {
+                slideOutVertically(animationSpec = animationSpec1) + fadeOut(animationSpec2)
+            }
         ) { backStackEntry ->
-
-            val userId = backStackEntry.arguments?.getInt("userId") ?: 0
             val budgetId = backStackEntry.arguments?.getInt("budgetId") ?: 0
+            val currentUser by userViewModel.currentUser.collectAsState()
+            val userId = currentUser?.id ?: 0
             AddEditBudgetScreen(navController, userId, budgetId)
         }
 

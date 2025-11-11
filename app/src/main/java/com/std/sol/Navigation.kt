@@ -37,7 +37,7 @@ fun BottomNavigationBar(navController: NavController) {
                 label = {
                     Text(
                         text = item.label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller (was default ~12sp)
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     )
                 },
@@ -51,160 +51,75 @@ fun BottomNavigationBar(navController: NavController) {
                         }
                     }
                 },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Amber,
-                    selectedTextColor = Amber,
-                    unselectedIconColor = Ivory,
-                    unselectedTextColor = Ivory,
-                    indicatorColor = Color.Transparent
-                )
+                colors = createNavigationBarItemColors()
             )
         }
     }
 }
 
-// UPDATED: Bottom Navigation with Circular Add Button (adjusted spacing and positioning)
+@Composable
+private fun createNavigationBarItemColors() = NavigationBarItemDefaults.colors(
+    selectedIconColor = Amber,
+    selectedTextColor = Amber,
+    unselectedIconColor = Ivory,
+    unselectedTextColor = Ivory,
+    indicatorColor = Color.Transparent
+)
+
 @Composable
 fun BottomNavigationBarWithFAB(
     navController: NavController,
     onAddClick: () -> Unit
 ) {
     val items = listOf(
-        Screen.Dashboard, Screen.Transactions, Screen.Budgets, Screen.More
+        Screen.Dashboard, Screen.Transactions, null, Screen.Budgets, Screen.More
     )
 
     Box(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Navigation bar with adjusted spacing to accommodate the FAB
         NavigationBar(
             containerColor = Color.Transparent,
-            contentColor = Ivory,
-            modifier = Modifier.padding(horizontal = 16.dp) // Add padding to make space for FAB
+            contentColor = Ivory
         ) {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-
-            // Dashboard - normal spacing
-            NavigationBarItem(
-                icon = { Icon(items[0].icon, contentDescription = items[0].label) },
-                label = {
-                    Text(
-                        text = items[0].label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller
-                        fontWeight = FontWeight.Medium
+            items.forEach { item ->
+                if (item == null) {
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { },
+                        icon = { },
+                        enabled = false
                     )
-                },
-                selected = currentRoute == items[0].route,
-                onClick = {
-                    if (currentRoute != items[0].route) {
-                        navController.navigate(items[0].route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Amber,
-                    selectedTextColor = Amber,
-                    unselectedIconColor = Ivory,
-                    unselectedTextColor = Ivory,
-                    indicatorColor = Color.Transparent
-                )
-            )
-
-            // Transactions - wider spacing for FAB
-            NavigationBarItem(
-                icon = { Icon(items[1].icon, contentDescription = items[1].label) },
-                label = {
-                    Text(
-                        text = items[1].label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller
-                        fontWeight = FontWeight.Medium
+                } else {
+                    NavigationBarItem(
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = {
+                            Text(
+                                text = item.label,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                        },
+                        selected = currentRoute == item.route,
+                        onClick = {
+                            if (currentRoute != item.route) {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        colors = createNavigationBarItemColors()
                     )
-                },
-                selected = currentRoute == items[1].route,
-                onClick = {
-                    if (currentRoute != items[1].route) {
-                        navController.navigate(items[1].route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Amber,
-                    selectedTextColor = Amber,
-                    unselectedIconColor = Ivory,
-                    unselectedTextColor = Ivory,
-                    indicatorColor = Color.Transparent
-                ),
-                modifier = Modifier.padding(end = 20.dp) // Extra space for FAB
-            )
-
-            // Budgets - wider spacing for FAB
-            NavigationBarItem(
-                icon = { Icon(items[2].icon, contentDescription = items[2].label) },
-                label = {
-                    Text(
-                        text = items[2].label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller
-                        fontWeight = FontWeight.Medium
-                    )
-                },
-                selected = currentRoute == items[2].route,
-                onClick = {
-                    if (currentRoute != items[2].route) {
-                        navController.navigate(items[2].route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Amber,
-                    selectedTextColor = Amber,
-                    unselectedIconColor = Ivory,
-                    unselectedTextColor = Ivory,
-                    indicatorColor = Color.Transparent
-                ),
-                modifier = Modifier.padding(start = 20.dp) // Extra space for FAB
-            )
-
-            // More - normal spacing
-            NavigationBarItem(
-                icon = { Icon(items[3].icon, contentDescription = items[3].label) },
-                label = {
-                    Text(
-                        text = items[3].label,
-                        fontSize = 10.sp, // UPDATED: Made text smaller
-                        fontWeight = FontWeight.Medium
-                    )
-                },
-                selected = currentRoute == items[3].route,
-                onClick = {
-                    if (currentRoute != items[3].route) {
-                        navController.navigate(items[3].route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Amber,
-                    selectedTextColor = Amber,
-                    unselectedIconColor = Ivory,
-                    unselectedTextColor = Ivory,
-                    indicatorColor = Color.Transparent
-                )
-            )
+                }
+            }
         }
 
-        // Floating Action Button
+
         FloatingActionButton(
             onClick = onAddClick,
             modifier = Modifier
@@ -212,7 +127,7 @@ fun BottomNavigationBarWithFAB(
                 .offset(y = (-16).dp)
                 .size(56.dp),
             containerColor = Amber,
-            contentColor = Color.White, // White plus icon
+            contentColor = Color.White,
             shape = CircleShape,
             elevation = FloatingActionButtonDefaults.elevation(
                 defaultElevation = 6.dp,

@@ -1,9 +1,10 @@
 [versions]
-agp = "8.13.0"
+agp = "8.13.1"
 coilCompose = "2.7.0"
 coilComposeVersion = "2.4.0"
 datastorePreferences = "1.1.7"
 datetime = "0.9.0"
+firebaseBom = "34.5.0"
 gson = "2.13.2"
 kotlin = "2.2.20"
 coreKtx = "1.17.0"
@@ -35,6 +36,8 @@ androidx-navigation-ui = { module = "androidx.navigation:navigation-ui" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 coil-compose-v240 = { module = "io.coil-kt:coil-compose", version.ref = "coilComposeVersion" }
 datetime = { module = "io.github.vanpra.compose-material-dialogs:datetime", version.ref = "datetime" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
