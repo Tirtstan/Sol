@@ -24,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.std.sol.SessionManager
 import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
+import com.std.sol.components.CategoryDropdown
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.entities.Budget
 import com.std.sol.ui.theme.Ivory
@@ -57,7 +58,6 @@ fun AddEditBudgetScreen(
 
     val isEditing = budgetId != 0
 
-    // Form state
     var name by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var minGoal by rememberSaveable { mutableStateOf("") }
@@ -66,7 +66,6 @@ fun AddEditBudgetScreen(
     var endDate by rememberSaveable { mutableStateOf(Date()) }
 
     var selectedCategoryId by rememberSaveable { mutableStateOf<Int?>(null) }
-    var expandedCategory by remember { mutableStateOf(false) }
 
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -79,7 +78,6 @@ fun AddEditBudgetScreen(
         categories.find { it.id == selectedCategoryId }
     }
 
-    // Load budget when editing
     LaunchedEffect(budgetId, userId) {
         if (isEditing) {
             val existing = budgetViewModel.getBudgetById(budgetId)
@@ -90,7 +88,6 @@ fun AddEditBudgetScreen(
                 maxGoal = "%.2f".format(b.maxGoalAmount)
                 startDate = b.startDate
                 endDate = b.endDate
-                // 3. Set the ID instead of the object
                 selectedCategoryId = b.categoryId
             } ?: run {
                 onClose?.invoke() ?: navController.popBackStack()
@@ -99,7 +96,6 @@ fun AddEditBudgetScreen(
         isLoading = false
     }
 
-    // Set category default after categories load
     LaunchedEffect(categories) {
         if (selectedCategoryId == null && categories.isNotEmpty()) {
             selectedCategoryId = categories.firstOrNull()?.id
@@ -121,7 +117,6 @@ fun AddEditBudgetScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ... (Header and other fields are unchanged)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -142,7 +137,6 @@ fun AddEditBudgetScreen(
                 return@Column
             }
 
-            // Name
             SpaceTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -152,49 +146,17 @@ fun AddEditBudgetScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Category dropdown
-            ExposedDropdownMenuBox(
-                expanded = expandedCategory,
-                onExpandedChange = { expandedCategory = !expandedCategory }
-            ) {
-                OutlinedTextField(
-                    // Uses derived object for display
-                    value = selectedCategory?.name ?: "Select Category",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Category", color = Color(0xFFFFFDF0)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { expandedCategory = true },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF56a1bf),
-                        unfocusedBorderColor = Color(0xFFFFFDF0),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    )
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedCategory,
-                    onDismissRequest = { expandedCategory = false }
-                ) {
-                    categories.forEach { cat ->
-                        DropdownMenuItem(
-                            text = { Text(cat.name) },
-                            onClick = {
-                                // 4. Update the ID on selection
-                                selectedCategoryId = cat.id
-                                expandedCategory = false
-                            }
-                        )
-                    }
-                }
-            }
+            CategoryDropdown(
+                categories = categories,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { category ->
+                    selectedCategoryId = category.id
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
 
-            // ... (Other fields are unchanged)
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Amounts row: min, max
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -223,7 +185,6 @@ fun AddEditBudgetScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Description
             SpaceTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -234,7 +195,6 @@ fun AddEditBudgetScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Date pickers row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -266,7 +226,6 @@ fun AddEditBudgetScreen(
                 }
             }
 
-            // Date picker dialogs
             if (showStartPicker) {
                 val state = rememberDatePickerState(initialSelectedDateMillis = startDate.time)
                 DatePickerDialog(
@@ -304,7 +263,6 @@ fun AddEditBudgetScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -333,7 +291,6 @@ fun AddEditBudgetScreen(
                             val budget = Budget(
                                 id = if (isEditing) budgetId else 0,
                                 userId = userId,
-                                // 5. Use the ID when creating the Budget object
                                 categoryId = selectedCategoryId ?: 0,
                                 name = name,
                                 description = description.ifBlank { null },

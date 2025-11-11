@@ -1,15 +1,17 @@
 package com.std.sol.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -19,7 +21,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.std.sol.Screen
 import com.std.sol.SessionManager
 import com.std.sol.components.BudgetComponent
 import com.std.sol.databases.DatabaseProvider
@@ -41,38 +42,32 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
     val budgetViewModel: BudgetViewModel = viewModel(factory = factory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = factory)
 
-    val currentUser by userViewModel?.currentUser?.collectAsState() ?: remember {
-        mutableStateOf(User(-1, "John Doe", ""))
-    }
+    val currentUser by
+    userViewModel?.currentUser?.collectAsState()
+        ?: remember { mutableStateOf(User(-1, "John Doe", "")) }
     val userId = currentUser?.id ?: 0
 
-    val budgets by budgetViewModel.getAllBudgets(
-        userId = userId,
-        descending = true
-    ).collectAsState(initial = emptyList())
-
-    val categories by categoryViewModel.getAllCategories(userId)
+    val budgets by
+    budgetViewModel
+        .getAllBudgets(userId = userId, descending = true)
         .collectAsState(initial = emptyList())
 
-    var selectedCategory by remember { mutableStateOf<Category?>(null) }
+    val categories by
+    categoryViewModel.getAllCategories(userId).collectAsState(initial = emptyList())
 
-    val filteredBudgets = remember(budgets, selectedCategory) {
-        budgets.filter { selectedCategory == null || it.categoryId == selectedCategory!!.id }
+    var selectedCategory by remember { mutableStateOf<Category?>(null) }
+    var showBudgetSheet by remember { mutableStateOf(false) }
+    var editBudgetId by remember { mutableStateOf<Int?>(null) }
+
+    val filteredBudgets =
+        remember(budgets, selectedCategory) {
+            budgets.filter {
+                selectedCategory == null || it.categoryId == selectedCategory!!.id
+            }
     }
 
     Scaffold(
-        containerColor = Color.Transparent,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    navController.navigate("${Screen.AddEditBudget.route}/${userId}/0")
-                },
-                containerColor = Color(0xFFf4c047),
-                contentColor = Color(0xFF0c1327)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add New Budget")
-            }
-        }
+        containerColor = Color.Transparent
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -96,7 +91,6 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Category filter row (horizontally scrollable)
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,7 +119,6 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Empty state or list
             if (currentUser == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Please log in to view budgets.", color = Ivory, fontFamily = InterFont)
@@ -138,7 +131,7 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "No budgets match this category. Tap the '+' to create one!",
+                        "No budgets match this category. Use the '+' button to create one!",
                         style = MaterialTheme.typography.bodyLarge,
                         color = Ivory,
                         fontFamily = InterFont
@@ -152,14 +145,67 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
                 ) {
                     items(filteredBudgets) { budget ->
                         val category = categories.find { it.id == budget.categoryId }
-                        BudgetComponent(
+                        BudgetItem(
                             budget = budget,
                             category = category,
-                            onClick = {
-                                navController.navigate("${Screen.AddEditBudget.route}/${userId}/${budget.id}")
+                            budgetDao = db.budgetDao(),
+                            onNavigate = {
+                                editBudgetId = budget.id
+                                showBudgetSheet = true
                             }
                         )
                     }
+                }
+            }
+        }
+    }
+
+    if (showBudgetSheet) {
+        val sheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = false
+        )
+        
+        ModalBottomSheet(
+            onDismissRequest = { 
+                showBudgetSheet = false
+                editBudgetId = null
+            },
+            sheetState = sheetState,
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(
+                            Color.White.copy(alpha = 0.3f),
+                            RoundedCornerShape(2.dp)
+                        )
+                )
+            },
+            containerColor = Color.Transparent
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .background(brush = Brush.verticalGradient(listOf(Indigo, IndigoLight)))
+            ) {
+                Column {
+                    AddEditBudgetScreen(
+                        navController = navController,
+                        userId = userId,
+                        budgetId = editBudgetId ?: 0,
+                        onClose = {
+                            showBudgetSheet = false
+                            editBudgetId = null
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight()
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -170,4 +216,38 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
 @Composable
 fun BudgetsScreenPreview() {
     SolTheme { BudgetsScreen(rememberNavController(), null) }
+}
+
+@Composable
+fun BudgetItem(
+    budget: com.std.sol.entities.Budget,
+    category: Category?,
+    budgetDao: com.std.sol.daos.BudgetDao,
+    onNavigate: () -> Unit
+) {
+    // Get the Flow for this specific budget's current amount
+    val currentAmountFlow =
+        remember(
+            budget.id,
+            budget.userId,
+            budget.categoryId,
+            budget.startDate,
+            budget.endDate
+        ) {
+            budgetDao.getCalculatedCurrentAmount(
+                userId = budget.userId,
+                categoryId = budget.categoryId,
+                start = budget.startDate,
+                end = budget.endDate
+            )
+        }
+
+    val currentAmount by currentAmountFlow.collectAsState(initial = 0.0)
+
+    BudgetComponent(
+        budget = budget,
+        category = category,
+        currentAmount = currentAmount,
+        onClick = onNavigate
+    )
 }

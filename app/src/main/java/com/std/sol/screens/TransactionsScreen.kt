@@ -68,18 +68,13 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }
     val userId = user?.id ?: -1
 
-    // Filtering state
     var filterType by remember { mutableStateOf(TransactionFilterType.RECENTS) }
     var customStart by remember { mutableStateOf(getStartOfDay(Date())) }
     var customEnd by remember { mutableStateOf(getEndOfDay(Date())) }
     var showCustomStartPicker by remember { mutableStateOf(false) }
     var showCustomEndPicker by remember { mutableStateOf(false) }
-
-    // NEW: Category filter state
     var selectedCustomCategory by remember { mutableStateOf<Category?>(null) }
     var expandedCategoryDropdown by remember { mutableStateOf(false) }
-
-    // NEW: Image preview state
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var showImagePreview by remember { mutableStateOf(false) }
 
@@ -122,7 +117,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         TransactionFilterType.CUSTOM -> Pair(customStart, customEnd)
     }
 
-    // All transactions in the period
     val allTransactions by transactionViewModel.getTransactionsByPeriod(
         userId,
         queryStart,
@@ -132,7 +126,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     val categories by categoryViewModel.getAllCategories(userId)
         .collectAsState(initial = emptyList())
 
-    // Filter transactions by category if custom filter is selected and category is chosen
     val filteredTransactions =
         if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
             allTransactions.filter { it.categoryId == selectedCustomCategory!!.id }
@@ -140,7 +133,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             allTransactions
         }
 
-    // Group or filter transactions as needed
     val groupedTransactions = when (filterType) {
         TransactionFilterType.RECENTS -> groupTransactionsByDay(allTransactions)
         TransactionFilterType.MONTH -> groupTransactionsByDay(allTransactions)
@@ -159,7 +151,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             null // Use default gradient
         }
 
-    // New state for adding and editing
     var showAddScreen by remember { mutableStateOf(false) }
     var editTransaction by remember { mutableStateOf<Transaction?>(null) }
 
@@ -253,9 +244,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
             }
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Custom date pickers and category selector
             if (filterType == TransactionFilterType.CUSTOM) {
-                // Date pickers row
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     CustomDatePickerButton(
                         text = "Start: ${
@@ -277,10 +266,9 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // UPDATED: Category selector dropdown with entity colors and icons
                 ExposedDropdownMenuBox(
                     expanded = expandedCategoryDropdown,
-                    onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }
+                    onExpandedChange = { expandedCategoryDropdown = it }
                 ) {
                     OutlinedTextField(
                         value = selectedCustomCategory?.name ?: "All Categories",
@@ -294,7 +282,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { expandedCategoryDropdown = true },
+                            .menuAnchor(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF56a1bf),
                             unfocusedBorderColor = Color(0xFFFFFDF0),
@@ -309,7 +297,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         expanded = expandedCategoryDropdown,
                         onDismissRequest = { expandedCategoryDropdown = false }
                     ) {
-                        // "All Categories" option
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -339,7 +326,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                             }
                         )
 
-                        // Individual categories
                         categories.forEach { category ->
                             DropdownMenuItem(
                                 text = {
@@ -374,7 +360,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 }
             }
 
-            // Date pickers for custom filter
             if (showCustomStartPicker) {
                 val datePickerState =
                     rememberDatePickerState(initialSelectedDateMillis = customStart.time)
@@ -418,7 +403,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Transactions List with group headers
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
@@ -455,7 +439,6 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
     }
 
-    // Image Preview Dialog
     if (showImagePreview && selectedImageUri != null) {
         ImagePreviewDialog(
             imageUri = selectedImageUri!!,
@@ -467,35 +450,56 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     }
 
     if (showAddScreen) {
+        val sheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = false
+        )
+        
         ModalBottomSheet(
-            onDismissRequest = { showAddScreen = false }
+            onDismissRequest = { showAddScreen = false },
+            sheetState = sheetState,
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(
+                            Color.White.copy(alpha = 0.3f),
+                            RoundedCornerShape(2.dp)
+                        )
+                )
+            },
+            containerColor = Color.Transparent
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                     .background(brush = Brush.verticalGradient(listOf(Indigo, IndigoLight)))
             ) {
-                AddTransactionScreen(
-                    navController = navController,
-                    userViewModel = userViewModel,
-                    transactionToEdit = editTransaction,
-                    onTransactionDeleted = { transaction ->
-                        transactionViewModel.deleteTransaction(transaction)
-                        showAddScreen = false
-                    },
-                    onClose = { showAddScreen = false },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                )
+                Column {
+                    AddTransactionScreen(
+                        navController = navController,
+                        userViewModel = userViewModel,
+                        transactionToEdit = editTransaction,
+                        onTransactionDeleted = { transaction ->
+                            transactionViewModel.deleteTransaction(transaction)
+                            showAddScreen = false
+                        },
+                        onClose = { showAddScreen = false },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight()
+                    )
+                    // Add bottom padding for safe area
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         }
     }
 }
 
-// NEW: Image Preview Dialog
 @Composable
 fun ImagePreviewDialog(
     imageUri: Uri,
@@ -700,7 +704,7 @@ fun TransactionCard(
     transaction: Transaction,
     category: Category?,
     onEdit: () -> Unit,
-    onImageClick: (Uri) -> Unit = {} // NEW: Callback for image click
+    onImageClick: (Uri) -> Unit = {}
 ) {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     Card(
@@ -761,7 +765,6 @@ fun TransactionCard(
                     )
                 }
 
-                // NEW: Image icon if image exists
                 transaction.imagePath?.let { imagePath ->
                     IconButton(
                         onClick = {
@@ -794,22 +797,7 @@ fun TransactionCard(
                     fontFamily = SpaceMonoFont
                 )
             }
-            Text(
-                text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${
-                    String.format(
-                        "%.2f",
-                        transaction.amount
-                    )
-                }",
-                color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(
-                    0xFFb42313
-                ),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = SpaceMonoFont
-            )
 
-            // Display note if available
             transaction.note?.let { note ->
                 if (note.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))

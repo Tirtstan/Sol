@@ -18,24 +18,49 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.std.sol.ui.theme.Indigo
 import com.std.sol.ui.theme.IndigoLight
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.ui.theme.SpaceMonoFont
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddOptionsDialog(
     onDismiss: () -> Unit,
     onAddTransaction: () -> Unit,
-    onAddCategory: () -> Unit
+    onAddCategory: () -> Unit,
+    onAddBudget: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+    
+    LaunchedEffect(Unit) {
+        sheetState.expand()
+    }
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .width(40.dp)
+                    .height(4.dp)
+                    .background(
+                        Color.White.copy(alpha = 0.3f),
+                        RoundedCornerShape(2.dp)
+                    )
+            )
+        },
+        containerColor = Color.Transparent
+    ) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
-                .clip(RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                 .background(
                     brush = Brush.verticalGradient(
                         listOf(
@@ -43,10 +68,7 @@ fun AddOptionsDialog(
                             IndigoLight
                         )
                     )
-                ),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.Transparent
-            )
+                )
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -62,7 +84,6 @@ fun AddOptionsDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Add Transaction Option
                 AddOptionItem(
                     icon = Icons.Default.AttachMoney,
                     title = "New Transaction",
@@ -75,7 +96,18 @@ fun AddOptionsDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Add Category Option
+                AddOptionItem(
+                    icon = Icons.Default.AccountBalanceWallet,
+                    title = "New Budget",
+                    subtitle = "Create spending budget",
+                    onClick = {
+                        onAddBudget()
+                        onDismiss()
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 AddOptionItem(
                     icon = Icons.Default.Category,
                     title = "New Category",
@@ -88,6 +120,8 @@ fun AddOptionsDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
                 SpaceButton(text = "Cancel", onClick = onDismiss)
+                
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -164,5 +198,12 @@ fun AddOptionItem(
 @Preview
 @Composable
 fun AddOptionsDialogPreview() {
-    SolTheme { AddOptionsDialog(onDismiss = { }, onAddTransaction = { }, onAddCategory = { }) }
+    SolTheme { 
+        AddOptionsDialog(
+            onDismiss = { }, 
+            onAddTransaction = { }, 
+            onAddCategory = { },
+            onAddBudget = { }
+        ) 
+    }
 }
