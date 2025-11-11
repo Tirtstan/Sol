@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "102156965455",
+    "project_id": "sol-app-a4b05",
+    "storage_bucket": "sol-app-a4b05.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:102156965455:android:6e6df4128ce8b8b7e1bc3a",
+        "android_client_info": {
+          "package_name": "com.std.sol"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxiXOWOLt7D-7cK0jJD3qyxIzxE6X7RmI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

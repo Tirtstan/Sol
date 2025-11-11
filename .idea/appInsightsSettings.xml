@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.std.sol" />
+                  <option name="mobileSdkAppId" value="1:102156965455:android:6e6df4128ce8b8b7e1bc3a" />
+                  <option name="projectId" value="sol-app-a4b05" />
+                  <option name="projectNumber" value="102156965455" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

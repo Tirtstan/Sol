@@ -75,7 +75,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     var customEnd by remember { mutableStateOf(getEndOfDay(Date())) }
     var showCustomStartPicker by remember { mutableStateOf(false) }
     var showCustomEndPicker by remember { mutableStateOf(false) }
-    var selectedCustomCategory by remember { mutableStateOf<Category?>(null) }
+    var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var expandedCategoryDropdown by remember { mutableStateOf(false) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var showImagePreview by remember { mutableStateOf(false) }
@@ -128,18 +128,31 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
     val categories by categoryViewModel.getAllCategories(userId)
         .collectAsState(initial = emptyList())
 
-    val filteredTransactions =
-        if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
-            allTransactions.filter { it.categoryId == selectedCustomCategory!!.id }
-        } else {
-            allTransactions
-        }
+    // Apply category filter to all transactions (works in all filter modes)
+    val filteredTransactions = if (selectedCategory != null) {
+        allTransactions.filter { it.categoryId == selectedCategory!!.id }
+    } else {
+        allTransactions
+    }
+
+    // Validate custom date range
+    val validCustomRange = if (filterType == TransactionFilterType.CUSTOM) {
+        customStart <= customEnd
+    } else {
+        true
+    }
 
     val groupedTransactions = when (filterType) {
-        TransactionFilterType.RECENTS -> groupTransactionsByDay(allTransactions)
-        TransactionFilterType.MONTH -> groupTransactionsByDay(allTransactions)
-        TransactionFilterType.WEEK -> groupTransactionsByDay(allTransactions)
-        TransactionFilterType.CUSTOM -> mapOf("" to filteredTransactions.sortedByDescending { it.date })
+        TransactionFilterType.RECENTS -> groupTransactionsByDay(filteredTransactions)
+        TransactionFilterType.MONTH -> groupTransactionsByDay(filteredTransactions)
+        TransactionFilterType.WEEK -> groupTransactionsByDay(filteredTransactions)
+        TransactionFilterType.CUSTOM -> {
+            if (validCustomRange) {
+                groupTransactionsByDay(filteredTransactions)
+            } else {
+                mapOf("Invalid Date Range" to emptyList<Transaction>())
+            }
+        }
     }
     var expenseSum =
         filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
@@ -147,8 +160,8 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         expenseSum = 99999.0
 
     val circleColor =
-        if (filterType == TransactionFilterType.CUSTOM && selectedCustomCategory != null) {
-            getCategoryColor(selectedCustomCategory!!.name)
+        if (selectedCategory != null) {
+            getCategoryColor(selectedCategory!!.name)
         } else {
             null // Use default gradient
         }
@@ -160,123 +173,105 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         containerColor = Color.Transparent,
     ) { innerPadding ->
 
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(20.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Transactions",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontStyle = FontStyle.Italic
-                    ),
-                    color = Color(0xFFFFFDF0),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
-                contentAlignment = Alignment.Center
-            ) {
-                ExpenseCircle(
-                    totalSpent = expenseSum,
-                    categoryColor = circleColor
-                )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            LazyRow(
-                modifier = Modifier
-                    .height(44.dp),
-                contentPadding = PaddingValues(start = 4.dp, end = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                item {
-                    FilterCard(
-                        selected = filterType == TransactionFilterType.RECENTS,
-                        label = "Recent",
-                        onClick = {
-                            filterType = TransactionFilterType.RECENTS
-                            selectedCustomCategory = null // Reset category filter
-                        },
-                        modifier = Modifier.wrapContentWidth()
-                    )
-                }
-                item {
-                    FilterCard(
-                        selected = filterType == TransactionFilterType.MONTH,
-                        label = "This Month",
-                        onClick = {
-                            filterType = TransactionFilterType.MONTH
-                            selectedCustomCategory = null // Reset category filter
-                        },
-                        modifier = Modifier.wrapContentWidth()
-                    )
-                }
-                item {
-                    FilterCard(
-                        selected = filterType == TransactionFilterType.WEEK,
-                        label = "This Week",
-                        onClick = {
-                            filterType = TransactionFilterType.WEEK
-                            selectedCustomCategory = null
-                        },
-                        modifier = Modifier.wrapContentWidth()
-                    )
-                }
-                item {
-                    FilterCard(
-                        selected = filterType == TransactionFilterType.CUSTOM,
-                        label = "Custom",
-                        onClick = { filterType = TransactionFilterType.CUSTOM },
-                        modifier = Modifier.wrapContentWidth()
+            // Title
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Transactions",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontStyle = FontStyle.Italic
+                        ),
+                        color = Color(0xFFFFFDF0),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(18.dp))
 
-            if (filterType == TransactionFilterType.CUSTOM) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    CustomDatePickerButton(
-                        text = "Start: ${
-                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                customStart
-                            )
-                        }",
-                        onClick = { showCustomStartPicker = true }
-                    )
-                    CustomDatePickerButton(
-                        text = "End: ${
-                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                                customEnd
-                            )
-                        }",
-                        onClick = { showCustomEndPicker = true }
+            // Expense Circle Chart
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ExpenseCircle(
+                        totalSpent = expenseSum,
+                        categoryColor = circleColor
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(12.dp))
+            // Filter buttons
+            item {
+                LazyRow(
+                    modifier = Modifier.height(44.dp),
+                    contentPadding = PaddingValues(start = 4.dp, end = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    item {
+                        FilterCard(
+                            selected = filterType == TransactionFilterType.RECENTS,
+                            label = "Recent",
+                            onClick = {
+                                filterType = TransactionFilterType.RECENTS
+                            },
+                            modifier = Modifier.wrapContentWidth()
+                        )
+                    }
+                    item {
+                        FilterCard(
+                            selected = filterType == TransactionFilterType.MONTH,
+                            label = "This Month",
+                            onClick = {
+                                filterType = TransactionFilterType.MONTH
+                            },
+                            modifier = Modifier.wrapContentWidth()
+                        )
+                    }
+                    item {
+                        FilterCard(
+                            selected = filterType == TransactionFilterType.WEEK,
+                            label = "This Week",
+                            onClick = {
+                                filterType = TransactionFilterType.WEEK
+                            },
+                            modifier = Modifier.wrapContentWidth()
+                        )
+                    }
+                    item {
+                        FilterCard(
+                            selected = filterType == TransactionFilterType.CUSTOM,
+                            label = "Custom",
+                            onClick = { filterType = TransactionFilterType.CUSTOM },
+                            modifier = Modifier.wrapContentWidth()
+                        )
+                    }
+                }
+            }
 
+            // Category filter - available in all modes
+            item {
                 ExposedDropdownMenuBox(
                     expanded = expandedCategoryDropdown,
                     onExpandedChange = { expandedCategoryDropdown = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedCustomCategory?.name ?: "All Categories",
+                        value = selectedCategory?.name ?: "All Categories",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Filter by Category", color = Color(0xFFFFFDF0)) },
@@ -326,7 +321,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                                 }
                             },
                             onClick = {
-                                selectedCustomCategory = null
+                                selectedCategory = null
                                 expandedCategoryDropdown = false
                             }
                         )
@@ -356,7 +351,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                                     }
                                 },
                                 onClick = {
-                                    selectedCustomCategory = category
+                                    selectedCategory = category
                                     expandedCategoryDropdown = false
                                 }
                             )
@@ -365,84 +360,186 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 }
             }
 
-            if (showCustomStartPicker) {
-                val datePickerState =
-                    rememberDatePickerState(initialSelectedDateMillis = customStart.time)
-                DatePickerDialog(
-                    onDismissRequest = { showCustomStartPicker = false },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                datePickerState.selectedDateMillis?.let {
-                                    customStart = getStartOfDay(Date(it))
-                                }
-                                showCustomStartPicker = false
-                            }
-                        ) { Text("OK") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showCustomStartPicker = false }) { Text("Cancel") }
-                    }
-                ) { DatePicker(state = datePickerState) }
-            }
-            if (showCustomEndPicker) {
-                val datePickerState =
-                    rememberDatePickerState(initialSelectedDateMillis = customEnd.time)
-                DatePickerDialog(
-                    onDismissRequest = { showCustomEndPicker = false },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                datePickerState.selectedDateMillis?.let {
-                                    customEnd = getEndOfDay(Date(it))
-                                }
-                                showCustomEndPicker = false
-                            }
-                        ) { Text("OK") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showCustomEndPicker = false }) { Text("Cancel") }
-                    }
-                ) { DatePicker(state = datePickerState) }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                groupedTransactions.forEach { (header, txns) ->
-                    if (header.isNotBlank()) {
-                        item {
+            // Custom date range picker - only shown in CUSTOM mode, simplified
+            if (filterType == TransactionFilterType.CUSTOM) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(
+                            onClick = { showCustomStartPicker = true },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF465be7),
+                                contentColor = Color(0xFFFFFDF0)
+                            ),
+                            modifier = Modifier.height(38.dp)
+                        ) {
                             Text(
-                                text = header,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Normal,
-                                fontFamily = SpaceMonoFont,
-                                color = Color(0xFFf4c047),
-                                modifier = Modifier.padding(vertical = 5.dp, horizontal = 2.dp)
+                                "Start: ${SimpleDateFormat("MMM dd", Locale.getDefault()).format(customStart)}",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                        Button(
+                            onClick = { showCustomEndPicker = true },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF465be7),
+                                contentColor = Color(0xFFFFFDF0)
+                            ),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Text(
+                                "End: ${SimpleDateFormat("MMM dd", Locale.getDefault()).format(customEnd)}",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             )
                         }
                     }
-                    items(txns) { transaction ->
-                        TransactionCard(
-                            transaction = transaction,
-                            category = categories.find { it.id == transaction.categoryId },
-                            onEdit = {
-                                editTransaction = transaction
-                                showAddScreen = true
-                            },
-                            onImageClick = { imageUri ->
-                                selectedImageUri = imageUri
-                                showImagePreview = true
-                            }
+                }
+
+                // Validation error message
+                if (!validCustomRange) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFb42313),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Start date must be before end date",
+                                fontSize = 12.sp,
+                                color = Color(0xFFb42313),
+                                fontStyle = FontStyle.Italic
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Transactions list
+            groupedTransactions.forEach { (header, txns) ->
+                if (header.isNotBlank()) {
+                    item {
+                        Text(
+                            text = header,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Normal,
+                            fontFamily = SpaceMonoFont,
+                            color = Color(0xFFf4c047),
+                            modifier = Modifier.padding(vertical = 5.dp, horizontal = 2.dp)
                         )
                     }
+                }
+                items(txns) { transaction ->
+                    TransactionCard(
+                        transaction = transaction,
+                        category = categories.find { it.id == transaction.categoryId },
+                        onEdit = {
+                            editTransaction = transaction
+                            showAddScreen = true
+                        },
+                        onImageClick = { imageUri ->
+                            selectedImageUri = imageUri
+                            showImagePreview = true
+                        }
+                    )
                 }
             }
         }
 
+    }
+
+    // Date picker dialogs
+    if (showCustomStartPicker) {
+        val datePickerState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = customStart.time,
+                yearRange = IntRange(2020, 2100)
+            )
+        DatePickerDialog(
+            onDismissRequest = { showCustomStartPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let {
+                            val newStart = getStartOfDay(Date(it))
+                            customStart = newStart
+                            // Auto-adjust end date if it's before start date
+                            if (customEnd < newStart) {
+                                customEnd = getEndOfDay(newStart)
+                            }
+                        }
+                        showCustomStartPicker = false
+                    }
+                ) { 
+                    Text(
+                        "OK",
+                        color = Color(0xFF56a1bf),
+                        fontWeight = FontWeight.SemiBold
+                    ) 
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomStartPicker = false }) { 
+                    Text(
+                        "Cancel",
+                        color = Color(0xFFFFFDF0)
+                    ) 
+                }
+            }
+        ) { DatePicker(state = datePickerState) }
+    }
+    if (showCustomEndPicker) {
+        val datePickerState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = customEnd.time,
+                yearRange = IntRange(2020, 2100)
+            )
+        DatePickerDialog(
+            onDismissRequest = { showCustomEndPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let {
+                            val newEnd = getEndOfDay(Date(it))
+                            customEnd = newEnd
+                            // Auto-adjust start date if it's after end date
+                            if (customStart > newEnd) {
+                                customStart = getStartOfDay(newEnd)
+                            }
+                        }
+                        showCustomEndPicker = false
+                    }
+                ) { 
+                    Text(
+                        "OK",
+                        color = Color(0xFF56a1bf),
+                        fontWeight = FontWeight.SemiBold
+                    ) 
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomEndPicker = false }) { 
+                    Text(
+                        "Cancel",
+                        color = Color(0xFFFFFDF0)
+                    ) 
+                }
+            }
+        ) { DatePicker(state = datePickerState) }
     }
 
     if (showImagePreview && selectedImageUri != null) {
@@ -595,26 +692,6 @@ fun FilterCard(
     }
 }
 
-@Composable
-fun CustomDatePickerButton(text: String, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF465be7),
-            contentColor = Color(0xFFFFFDF0)
-        ),
-        modifier = Modifier.height(38.dp)
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        )
-    }
-}
 
 fun groupTransactionsByDay(transactions: List<Transaction>): Map<String, List<Transaction>> {
     val now = Calendar.getInstance()
