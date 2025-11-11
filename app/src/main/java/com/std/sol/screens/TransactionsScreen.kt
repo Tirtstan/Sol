@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
@@ -170,11 +172,14 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "TRANSACTIONS",
+                    text = "Transactions",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontStyle = FontStyle.Italic
+                    ),
                     color = Color(0xFFFFFDF0),
-                    fontSize = 28.sp,
-                    fontFamily = SpaceMonoFont,
-                    fontWeight = FontWeight.Bold
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -412,9 +417,10 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         item {
                             Text(
                                 text = header,
-                                color = Color(0xFFf4c047),
-                                fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
+                                fontWeight = FontWeight.Normal,
+                                fontFamily = SpaceMonoFont,
+                                color = Color(0xFFf4c047),
                                 modifier = Modifier.padding(vertical = 5.dp, horizontal = 2.dp)
                             )
                         }
@@ -523,8 +529,10 @@ fun ImagePreviewDialog(
                 ) {
                     Text(
                         text = "Transaction Image",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                     IconButton(onClick = onDismiss) {
                         Icon(
@@ -577,10 +585,11 @@ fun FilterCard(
         ) {
             Text(
                 text = label,
-                color = if (selected) DeepSpaceBase else Ivory,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                fontFamily = SpaceMonoFont
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = if (selected) DeepSpaceBase else Ivory
             )
         }
     }
@@ -597,7 +606,13 @@ fun CustomDatePickerButton(text: String, onClick: () -> Unit) {
         ),
         modifier = Modifier.height(38.dp)
     ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        )
     }
 }
 
@@ -683,16 +698,19 @@ fun ExpenseCircle(
         ) {
             Text(
                 text = "R${String.format("%.2f", totalSpent)}",
-                color = Color(0xFFFFFDF0),
                 fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = SpaceMonoFont
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = SpaceMonoFont,
+                color = Color(0xFFFFFDF0)
             )
             Text(
                 text = "Expenses",
-                color = Color(0xFFF4C047),
-                fontSize = 12.sp,
-                fontFamily = SpaceMonoFont
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal,
+                    fontStyle = FontStyle.Italic
+                ),
+                color = Color(0xFFF4C047)
             )
         }
 
@@ -749,19 +767,20 @@ fun TransactionCard(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = transaction.name.uppercase(),
-                        color = Color(0xFFFFFDF0),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = SpaceMonoFont
+                        text = transaction.name,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = Color(0xFFFFFDF0)
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = dateFormat.format(transaction.date),
-                        color = Color(0xFFF4C047),
-                        fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        fontFamily = SpaceMonoFont
+                        fontWeight = FontWeight.Normal,
+                        fontFamily = SpaceMonoFont,
+                        color = Color(0xFFF4C047)
                     )
                 }
 
@@ -789,12 +808,12 @@ fun TransactionCard(
                             transaction.amount
                         )
                     }",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = SpaceMonoFont,
                     color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(
                         0xFFb42313
-                    ),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont
+                    )
                 )
             }
 
@@ -803,10 +822,11 @@ fun TransactionCard(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = note,
-                        color = Color(0xFFFFFDF0).copy(alpha = 0.7f),
-                        fontSize = 12.sp,
-                        fontStyle = FontStyle.Italic,
-                        fontFamily = SpaceMonoFont
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 12.sp,
+                            fontStyle = FontStyle.Italic
+                        ),
+                        color = Color(0xFFFFFDF0).copy(alpha = 0.7f)
                     )
                 }
             }

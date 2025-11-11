@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,11 +77,14 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "DASHBOARD",
+                text = "Dashboard",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontStyle = FontStyle.Italic
+                ),
                 color = Color(0xFFFFFDF0),
-                fontSize = 28.sp,
-                fontFamily = SpaceMonoFont,
-                fontWeight = FontWeight.Bold
+                textAlign = TextAlign.Center
             )
         }
 
@@ -88,7 +92,11 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
 
         if (user == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Please log in to view dashboard.", color = Ivory, fontFamily = InterFont)
+                Text(
+                    "Please log in to view dashboard.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Ivory
+                )
             }
         } else {
             if (recentBudgets.isNotEmpty()) {
@@ -99,19 +107,21 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 ) {
                     Text(
                         text = "Recent Budgets",
-                        color = Color(0xFFFFFDF0),
                         fontSize = 20.sp,
+                        fontWeight = FontWeight.Normal,
                         fontFamily = SpaceMonoFont,
-                        fontWeight = FontWeight.Bold
+                        color = Color(0xFFFFFDF0)
                     )
                     TextButton(
                         onClick = { navController.navigate(Screen.Budgets.route) }
                     ) {
                         Text(
                             text = "View All",
-                            color = Color(0xFFF4C047),
-                            fontFamily = InterFont,
-                            fontSize = 14.sp
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = Color(0xFFF4C047)
                         )
                     }
                 }
@@ -147,7 +157,6 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                             "No budgets yet. Create one to get started!",
                             style = MaterialTheme.typography.bodyLarge,
                             color = Ivory,
-                            fontFamily = InterFont,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -158,7 +167,10 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                                 contentColor = Color(0xFF0c1327)
                             )
                         ) {
-                            Text("Create Budget", fontFamily = SpaceMonoFont)
+                            Text(
+                                "Create Budget",
+                                style = MaterialTheme.typography.labelLarge
+                            )
                         }
                     }
                 }

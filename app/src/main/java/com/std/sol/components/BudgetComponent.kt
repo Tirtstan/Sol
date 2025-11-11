@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
 import com.std.sol.entities.Budget
 import com.std.sol.entities.Category
 import com.std.sol.screens.getCategoryColor
@@ -23,6 +25,9 @@ import com.std.sol.ui.theme.Indigo
 import com.std.sol.ui.theme.IndigoLight
 import com.std.sol.ui.theme.InterFont
 import com.std.sol.ui.theme.Ivory
+import com.std.sol.ui.theme.Mist
+import com.std.sol.ui.theme.Ocean
+import com.std.sol.ui.theme.Sky
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.ui.theme.SpaceMonoFont
 import java.text.SimpleDateFormat
@@ -105,18 +110,63 @@ fun BudgetComponent(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    // Dates row
-                    Text(
-                        text =
-                            "From ${dateFormat.format(budget.startDate)} • To ${
-                                dateFormat.format(
-                                    budget.endDate
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Ocean.copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = dateFormat.format(budget.startDate),
+                                    color = Sky.copy(alpha = 0.95f),
+                                    fontSize = 11.sp,
+                                    fontFamily = InterFont,
+                                    fontWeight = FontWeight.SemiBold
                                 )
-                            }",
-                        color = Color(0xFFF4C047),
-                        fontSize = 12.sp,
-                        fontFamily = SpaceMonoFont
-                    )
+                            }
+                        }
+
+                        // Arrow icon
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            tint = Ivory.copy(alpha = 0.6f),
+                            modifier = Modifier.size(16.dp)
+                        )
+
+                        // End date chip
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Mist.copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = dateFormat.format(budget.endDate),
+                                    color = Mist.copy(alpha = 0.95f),
+                                    fontSize = 11.sp,
+                                    fontFamily = InterFont,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
 
                     Spacer(modifier = Modifier.height(8.dp))
 

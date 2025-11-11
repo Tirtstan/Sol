@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,15 +83,18 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "BUDGETS",
+                    text = "Budgets",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontStyle = FontStyle.Italic
+                    ),
                     color = Color(0xFFFFFDF0),
-                    fontSize = 28.sp,
-                    fontFamily = SpaceMonoFont,
-                    fontWeight = FontWeight.Bold
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             LazyRow(
                 modifier = Modifier
@@ -121,7 +126,11 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
 
             if (currentUser == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Please log in to view budgets.", color = Ivory, fontFamily = InterFont)
+                    Text(
+                        "Please log in to view budgets.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Ivory
+                    )
                 }
             } else if (filteredBudgets.isEmpty()) {
                 Box(
@@ -133,8 +142,7 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
                     Text(
                         "No budgets match this category. Use the '+' button to create one!",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = Ivory,
-                        fontFamily = InterFont
+                        color = Ivory
                     )
                 }
             } else {
