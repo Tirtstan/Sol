@@ -28,13 +28,13 @@ import com.std.sol.Screen
 import com.std.sol.SessionManager
 import com.std.sol.components.BudgetComponent
 import com.std.sol.databases.DatabaseProvider
-import com.std.sol.entities.Category
 import com.std.sol.entities.User
 import com.std.sol.ui.theme.*
 import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
+import com.std.sol.components.RecentBudgetsWidget
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,17 +51,11 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
     }
     val userId = user?.id ?: 0
 
-    val budgets by budgetViewModel.getAllBudgets(
-        userId = userId,
-        descending = true
-    ).collectAsState(initial = emptyList())
+    //removed
 
-    val categories by categoryViewModel.getAllCategories(userId)
-        .collectAsState(initial = emptyList())
+    //removed
 
-    val recentBudgets = remember(budgets) {
-        budgets.take(3)
-    }
+    //removed
 
     var showBudgetSheet by remember { mutableStateOf(false) }
     var editBudgetId by remember { mutableStateOf<Int?>(null) }
@@ -99,82 +93,20 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 )
             }
         } else {
-            if (recentBudgets.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Recent Budgets",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = SpaceMonoFont,
-                        color = Color(0xFFFFFDF0)
-                    )
-                    TextButton(
-                        onClick = { navController.navigate(Screen.Budgets.route) }
-                    ) {
-                        Text(
-                            text = "View All",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            color = Color(0xFFF4C047)
-                        )
-                    }
-                }
+            //get the dao from the db variable
+            val budgetDao = db.budgetDao()
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(recentBudgets) { budget ->
-                        val category = categories.find { it.id == budget.categoryId }
-                        BudgetItem(
-                            budget = budget,
-                            category = category,
-                            budgetDao = db.budgetDao(),
-                            onNavigate = {
-                                editBudgetId = budget.id
-                                showBudgetSheet = true
-                            }
-                        )
-                    }
+            RecentBudgetsWidget(
+                navController = navController,
+                budgetViewModel = budgetViewModel,
+                categoryViewModel = categoryViewModel,
+                budgetDao = budgetDao,
+                userId = userId,
+                onEditBudget = { budgetId ->
+                    editBudgetId = budgetId
+                    showBudgetSheet = true
                 }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "No budgets yet. Create one to get started!",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Ivory,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { navController.navigate("${Screen.AddEditBudget.route}/0") },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFf4c047),
-                                contentColor = Color(0xFF0c1327)
-                            )
-                        ) {
-                            Text(
-                                "Create Budget",
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-                    }
-                }
-            }
+            )
         }
     }
 
