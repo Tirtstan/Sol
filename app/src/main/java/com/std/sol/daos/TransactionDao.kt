@@ -37,6 +37,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE userId = :userId AND type = :type ORDER BY date ASC")
     fun getTransactionsByTypeAsc(userId: Int, type: TransactionType): Flow<List<Transaction>>
 
+    @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY date DESC LIMIT 2")
+    fun getRecentTransactions(userId: Int): Flow<List<Transaction>>
+
     fun getAllTransactions(
         userId: Int,
         descending: Boolean = false

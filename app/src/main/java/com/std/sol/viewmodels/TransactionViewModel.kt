@@ -32,6 +32,10 @@ class TransactionViewModel(private val transactionDao: TransactionDao) : ViewMod
         return transactionDao.getTransactionsByType(userId, type, descending)
     }
 
+    fun getRecentTransactions(userId: Int): Flow<List<Transaction>> {
+        return transactionDao.getRecentTransactions(userId)
+    }
+
     suspend fun getTransactionById(id: Int): Transaction? {
         return transactionDao.getTransactionById(id)
     }
