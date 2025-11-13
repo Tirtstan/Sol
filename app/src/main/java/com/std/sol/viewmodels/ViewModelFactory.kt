@@ -29,9 +29,14 @@ class ViewModelFactory(
         }
 
         //teaches factory how to create the new ViewModel
-        modelClass.isAssignableFrom(DashboardViewModel::class.java) -> {
-            DashboardViewModel(db, sessionManager) as T
+        if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
+            return DashboardViewModel(db, sessionManager) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
+
+        if (modelClass.isAssignableFrom(CustomizeDashboardViewModel::class.java)) {
+            return CustomizeDashboardViewModel(sessionManager) as T
+        }
+
+       throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
