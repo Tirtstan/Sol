@@ -37,6 +37,7 @@ import com.std.sol.SessionManager
 import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
 import com.std.sol.components.CategoryDropdown
+import com.std.sol.components.CombinedPresetsDropdown
 import com.std.sol.databases.DatabaseProvider
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
@@ -91,6 +92,10 @@ fun AddTransactionScreen(
     var imageUri by remember { mutableStateOf(transactionToEdit?.imagePath?.toUri()) }
 
     val categories by categoryViewModel.getAllCategories(userId)
+        .collectAsState(initial = emptyList())
+
+    // Recent transactions for combined presets
+    val recentTransactions by transactionViewModel.getRecentTransactions(userId)
         .collectAsState(initial = emptyList())
 
     LaunchedEffect(categories, transactionToEdit) {
@@ -218,6 +223,26 @@ fun AddTransactionScreen(
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Combined Presets and Recent Expenses Dropdown
+            if (transactionToEdit == null) {
+                CombinedPresetsDropdown(
+                    recentTransactions = recentTransactions,
+                    categories = categories,
+                    onPresetSelected = { presetName, matchingCategory ->
+                        transactionName = presetName
+                        selectedType = TransactionType.EXPENSE
+                        if (matchingCategory != null) {
+                            selectedCategory = matchingCategory
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             val formattedAmount = if (amount.isBlank()) "0.00" else String.format(
