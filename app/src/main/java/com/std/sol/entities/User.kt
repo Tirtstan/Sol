@@ -8,6 +8,5 @@ data class User(
     var username: String = "",
     var createdAt: Long = System.currentTimeMillis()
 ) {
-    // No-arg constructor for Firestore
     constructor() : this("", "", System.currentTimeMillis())
 }

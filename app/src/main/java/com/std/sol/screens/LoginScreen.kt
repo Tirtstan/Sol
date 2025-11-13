@@ -40,18 +40,16 @@ import androidx.navigation.compose.rememberNavController
 import com.std.sol.R
 import com.std.sol.components.StaggeredItem
 import com.std.sol.components.StarryBackground
-import com.std.sol.entities.User
 import com.std.sol.ui.theme.Amber
 import com.std.sol.ui.theme.Ivory
 import com.std.sol.ui.theme.AuthGradient
-import com.std.sol.utils.PasswordUtils
 import com.std.sol.viewmodels.UserViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(navController: NavController, userViewModel: UserViewModel?) {
-    var username by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
@@ -99,10 +97,10 @@ fun LoginScreen(navController: NavController, userViewModel: UserViewModel?) {
 
         StaggeredItem(index = 2) {
             SpaceTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = stringResource(R.string.username),
-                placeholder = stringResource(R.string.enter_username),
+                value = email,
+                onValueChange = { email = it },
+                label = "Email",
+                placeholder = "Enter your email",
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -175,13 +173,13 @@ fun LoginScreen(navController: NavController, userViewModel: UserViewModel?) {
                     handleLogin(
                         scope,
                         userViewModel,
-                        username,
+                        email,
                         password,
                         context,
                         navController
                     )
                 },
-                enabled = username.isNotBlank() && password.isNotBlank(),
+                enabled = email.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
@@ -193,19 +191,19 @@ fun LoginScreen(navController: NavController, userViewModel: UserViewModel?) {
 private fun handleLogin(
     scope: CoroutineScope,
     userViewModel: UserViewModel?,
-    username: String,
+    email: String,
     password: String,
     context: Context,
     navController: NavController
 ) {
     scope.launch {
-        val user = userViewModel?.getUserByUsername(username)
-        if (user != null && PasswordUtils.verifyPassword(password, user.passwordHash)) {
-            userViewModel.setCurrentUser(user)
+        val result = userViewModel?.login(email, password)
+        if (result?.isSuccess == true) {
             Toast.makeText(context, "Login successful!", Toast.LENGTH_SHORT).show()
             navController.navigate(Screen.Dashboard.route)
         } else {
-            Toast.makeText(context, "Invalid username or password", Toast.LENGTH_SHORT).show()
+            val errorMessage = result?.exceptionOrNull()?.message ?: "Invalid email or password"
+            Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -2,6 +2,7 @@ package com.std.sol.entities
 
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
+import com.google.firebase.firestore.Exclude
 import java.util.Date
 
 data class Transaction(
@@ -16,10 +17,10 @@ data class Transaction(
     var type: String = TransactionType.EXPENSE.name,
     var imagePath: String? = null
 ) {
-    // No-arg constructor for Firestore
     constructor() : this("", "", "", "", 0.0, Timestamp.now(), null, TransactionType.EXPENSE.name, null)
-    
-    // Helper methods for working with Date and TransactionType
+
+    @Exclude
     fun getDateAsDate(): Date = date.toDate()
+    @Exclude
     fun getTransactionType(): TransactionType = TransactionType.valueOf(type)
 }

@@ -2,59 +2,60 @@ package com.std.sol.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.std.sol.daos.TransactionDao
+import com.google.firebase.Timestamp
 import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
+import com.std.sol.repositories.TransactionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.util.Date
 
-class TransactionViewModel(private val transactionDao: TransactionDao) : ViewModel() {
+class TransactionViewModel(private val transactionRepository: TransactionRepository) : ViewModel() {
 
-    fun getAllTransactions(userId: Int, descending: Boolean = true): Flow<List<Transaction>> {
-        return transactionDao.getAllTransactions(userId, descending)
+    fun getAllTransactions(userId: String, descending: Boolean = true): Flow<List<Transaction>> {
+        return transactionRepository.getAllTransactions(userId, descending)
     }
 
     fun getTransactionsByPeriod(
-        userId: Int,
-        startDate: Date,
-        endDate: Date,
+        userId: String,
+        startDate: Timestamp,
+        endDate: Timestamp,
         descending: Boolean = true
     ): Flow<List<Transaction>> {
-        return transactionDao.getTransactionsByPeriod(userId, startDate, endDate, descending)
+        return transactionRepository.getTransactionsByPeriod(userId, startDate, endDate, descending)
     }
 
     fun getTransactionsByType(
-        userId: Int,
+        userId: String,
         type: TransactionType,
         descending: Boolean = true
     ): Flow<List<Transaction>> {
-        return transactionDao.getTransactionsByType(userId, type, descending)
+        return transactionRepository.getTransactionsByType(userId, type, descending)
     }
 
-    fun getRecentTransactions(userId: Int): Flow<List<Transaction>> {
-        return transactionDao.getRecentTransactions(userId)
+    fun getRecentTransactions(userId: String): Flow<List<Transaction>> {
+        return transactionRepository.getRecentTransactions(userId)
     }
 
-    suspend fun getTransactionById(id: Int): Transaction? {
-        return transactionDao.getTransactionById(id)
+    suspend fun getTransactionById(userId: String, id: String): Transaction? {
+        return transactionRepository.getTransactionById(userId, id)
     }
 
-    fun addTransaction(transaction: Transaction) {
+    fun addTransaction(userId: String, transaction: Transaction) {
         viewModelScope.launch {
-            transactionDao.insertTransaction(transaction)
+            transactionRepository.addTransaction(userId, transaction)
         }
     }
 
-    fun updateTransaction(transaction: Transaction) {
+    fun updateTransaction(userId: String, transaction: Transaction) {
         viewModelScope.launch {
-            transactionDao.updateTransaction(transaction)
+            transactionRepository.updateTransaction(userId, transaction)
         }
     }
 
-    fun deleteTransaction(transaction: Transaction) {
+    fun deleteTransaction(userId: String, transaction: Transaction) {
         viewModelScope.launch {
-            transactionDao.deleteTransaction(transaction)
+            transactionRepository.deleteTransaction(userId, transaction)
         }
     }
 }

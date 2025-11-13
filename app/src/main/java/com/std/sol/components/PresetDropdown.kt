@@ -207,7 +207,7 @@ fun RecentTransactionButton(
                 Text(
                     text = "R${String.format("%.2f", transaction.amount)} • ${
                         SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                            .format(transaction.date)
+                            .format(transaction.getDateAsDate())
                     }",
                     color = Color(0xFFFFFDF0).copy(alpha = 0.6f),
                     fontSize = 11.sp,

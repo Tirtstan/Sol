@@ -10,6 +10,5 @@ data class Category(
     var color: String = "",
     var icon: String = ""
 ) {
-    // No-arg constructor for Firestore
     constructor() : this("", "", "", "", "")
 }

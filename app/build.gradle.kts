@@ -2,10 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.room)
 
     kotlin("plugin.serialization") version "2.2.0"
-    id("com.google.devtools.ksp")
 
     id("com.google.gms.google-services")
 }
@@ -49,10 +47,6 @@ android {
     }
 }
 
-room {
-    schemaDirectory("$projectDir/schemas")
-}
-
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -81,6 +75,8 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.auth)
+    implementation(libs.google.firebase.firestore)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -89,9 +85,4 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    implementation(libs.gson)
-    ksp(libs.room.compiler)
 }

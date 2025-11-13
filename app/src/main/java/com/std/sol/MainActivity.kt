@@ -48,7 +48,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.components.AddOptionsDialog
 import com.std.sol.components.StarryBackground
-import com.std.sol.databases.DatabaseProvider
+import com.std.sol.repositories.BudgetRepository
+import com.std.sol.repositories.CategoryRepository
+import com.std.sol.repositories.TransactionRepository
+import com.std.sol.repositories.UserRepository
 import com.std.sol.screens.AddCategoryScreen
 import com.std.sol.screens.AddEditBudgetScreen
 import com.std.sol.screens.AddTransactionScreen
@@ -85,9 +88,18 @@ fun Main() {
             color = Color(0xFF0B1426)
         ) {
             val context = LocalContext.current
+            val userRepository = UserRepository()
+            val transactionRepository = TransactionRepository()
+            val categoryRepository = CategoryRepository()
+            val budgetRepository = BudgetRepository()
+            val sessionManager = SessionManager(context.applicationContext)
+            
             val viewModelFactory = ViewModelFactory(
-                DatabaseProvider.getDatabase(context.applicationContext),
-                SessionManager(context.applicationContext)
+                userRepository,
+                transactionRepository,
+                categoryRepository,
+                budgetRepository,
+                sessionManager
             )
             val userViewModel: UserViewModel = viewModel(factory = viewModelFactory)
             val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
@@ -207,7 +219,7 @@ fun App(userViewModel: UserViewModel) {
                 navController.navigate("add_category")
             },
             onAddBudget = {
-                navController.navigate("${Screen.AddEditBudget.route}/0")
+                navController.navigate("${Screen.AddEditBudget.route}/")
             }
         )
     }
@@ -324,7 +336,7 @@ fun AppNavHost(
         composable(
             route = "${Screen.AddEditBudget.route}/{budgetId}",
             arguments = listOf(
-                navArgument("budgetId") { type = NavType.IntType }),
+                navArgument("budgetId") { type = NavType.StringType }),
             enterTransition = {
                 slideInVertically(
                     initialOffsetY = { 300 }, animationSpec = animationSpec1
@@ -334,9 +346,9 @@ fun AppNavHost(
                 slideOutVertically(animationSpec = animationSpec1) + fadeOut(animationSpec2)
             }
         ) { backStackEntry ->
-            val budgetId = backStackEntry.arguments?.getInt("budgetId") ?: 0
+            val budgetId = backStackEntry.arguments?.getString("budgetId") ?: ""
             val currentUser by userViewModel.currentUser.collectAsState()
-            val userId = currentUser?.id ?: 0
+            val userId = currentUser?.id ?: ""
             AddEditBudgetScreen(navController, userId, budgetId)
         }
 
