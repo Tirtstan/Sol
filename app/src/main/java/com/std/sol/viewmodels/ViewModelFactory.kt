@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.std.sol.SessionManager
 import com.std.sol.databases.AppDatabase
+import com.std.sol.components.DashboardWidgetType
 
 class ViewModelFactory(
     private val db: AppDatabase,
@@ -25,6 +26,11 @@ class ViewModelFactory(
         if (modelClass.isAssignableFrom(BudgetViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return BudgetViewModel(db.budgetDao()) as T
+        }
+
+        //teaches factory how to create the new ViewModel
+        modelClass.isAssignableFrom(DashboardViewModel::class.java) -> {
+            DashboardViewModel(db, sessionManager) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

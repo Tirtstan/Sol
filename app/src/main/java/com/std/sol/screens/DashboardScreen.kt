@@ -3,7 +3,7 @@ package com.std.sol.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+//import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -35,7 +35,9 @@ import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
 import com.std.sol.components.RecentBudgetsWidget
-
+import androidx.compose.foundation.lazy.items
+import com.std.sol.components.DashboardWidgetType
+import com.std.sol.viewmodels.DashboardViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?) {
@@ -43,6 +45,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
     val db = remember { DatabaseProvider.getDatabase(context.applicationContext) }
     val sessionManager = remember { SessionManager(context.applicationContext) }
     val factory = remember { ViewModelFactory(db, sessionManager) }
+
     val budgetViewModel: BudgetViewModel = viewModel(factory = factory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = factory)
 
@@ -51,11 +54,8 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
     }
     val userId = user?.id ?: 0
 
-    //removed
-
-    //removed
-
-    //removed
+    val dashboardViewModel: DashboardViewModel = viewModel(factory = factory)
+    val widgets by dashboardViewModel.dashboardWidgets.collectAsState()
 
     var showBudgetSheet by remember { mutableStateOf(false) }
     var editBudgetId by remember { mutableStateOf<Int?>(null) }
@@ -93,20 +93,34 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 )
             }
         } else {
-            //get the dao from the db variable
+            //removed
             val budgetDao = db.budgetDao()
 
-            RecentBudgetsWidget(
-                navController = navController,
-                budgetViewModel = budgetViewModel,
-                categoryViewModel = categoryViewModel,
-                budgetDao = budgetDao,
-                userId = userId,
-                onEditBudget = { budgetId ->
-                    editBudgetId = budgetId
-                    showBudgetSheet = true
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth()
+                verticalArrangement = Arrangement.spacedBy(16.dp) //adds space between widget
+            ) {
+                items(widgets) { widgetType ->
+                    //checks the list and builds the UI
+                    when (widgetType) {
+
+                        DashboardWidgetType.RECENT_BUDGETS -> {
+                            RecentBudgetsWidget(
+                                navController = navController,
+                                budgetViewModel = budgetViewModel,
+                                categoryViewModel = categoryViewModel,
+                                budgetDao = budgetDao,
+                                userId = userId,
+                                onEditBudget = { budgetID ->
+                                    editBudgetId =budgetId
+                                    showBudgetSheet = true
+                                }
+                            )
+                        }
+                        //when adding new widgets, you'll add them here
+                    }
                 }
-            )
+            }
         }
     }
 
