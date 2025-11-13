@@ -1,51 +1,25 @@
 package com.std.sol.entities
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
-import com.google.gson.annotations.SerializedName
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentId
 import java.util.Date
 
-@Entity(
-    tableName = "transactions",
-    foreignKeys = [
-        ForeignKey(
-            entity = User::class,
-            parentColumns = ["id"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = Category::class,
-            parentColumns = ["id"],
-            childColumns = ["categoryId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index(value = ["userId"]), Index(value = ["categoryId"])]
-)
 data class Transaction(
-    @PrimaryKey(autoGenerate = true)
-    @SerializedName("id")
-    val id: Int = 0,
-    @ColumnInfo(name = "userId")
-    @SerializedName("userId")
-    val userId: Int,
-    @ColumnInfo(name = "categoryId")
-    @SerializedName("categoryId")
-    val categoryId: Int,
-    @SerializedName("name")
-    val name: String,
-    @SerializedName("amount")
-    val amount: Double,
-    @SerializedName("date")
-    val date: Date,
-    @SerializedName("note")
-    val note: String?,
-    @SerializedName("type")
-    val type: TransactionType,
-    @SerializedName("imagePath")
-    val imagePath: String? = null
-)
+    @DocumentId
+    var id: String = "",
+    var userId: String = "",
+    var categoryId: String = "",
+    var name: String = "",
+    var amount: Double = 0.0,
+    var date: Timestamp = Timestamp.now(),
+    var note: String? = null,
+    var type: String = TransactionType.EXPENSE.name,
+    var imagePath: String? = null
+) {
+    // No-arg constructor for Firestore
+    constructor() : this("", "", "", "", 0.0, Timestamp.now(), null, TransactionType.EXPENSE.name, null)
+    
+    // Helper methods for working with Date and TransactionType
+    fun getDateAsDate(): Date = date.toDate()
+    fun getTransactionType(): TransactionType = TransactionType.valueOf(type)
+}
