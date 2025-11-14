@@ -2,6 +2,7 @@ package com.std.sol.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 //import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -38,6 +39,8 @@ import com.std.sol.components.RecentBudgetsWidget
 import androidx.compose.foundation.lazy.items
 import com.std.sol.components.DashboardWidgetType
 import com.std.sol.viewmodels.DashboardViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?) {
@@ -93,11 +96,25 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 )
             }
         } else {
-            //removed
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = {
+                    //navigate to the new screen
+                    navController.navigate(Screen.CustomizeDashboard.route)
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Customize Dashboard",
+                        tint = Color(0xFFF4C047)
+                    )
+                }
+            }
             val budgetDao = db.budgetDao()
 
             LazyColumn(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp) //adds space between widget
             ) {
                 items(widgets) { widgetType ->
@@ -112,7 +129,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                                 budgetDao = budgetDao,
                                 userId = userId,
                                 onEditBudget = { budgetID ->
-                                    editBudgetId =budgetId
+                                    editBudgetId = budgetID
                                     showBudgetSheet = true
                                 }
                             )

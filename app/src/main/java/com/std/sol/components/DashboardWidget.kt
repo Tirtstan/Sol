@@ -19,6 +19,7 @@ import com.std.sol.ui.theme.Ivory
 import com.std.sol.ui.theme.SpaceMonoFont
 import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
+import com.std.sol.entities.Budget
 
 enum class DashboardWidgetType{
     RECENT_BUDGETS,
@@ -39,13 +40,13 @@ fun RecentBudgetsWidget(
     val budgets by budgetViewModel.getAllBudgets(
         userId = userId,
         descending = true
-    ).collectAsState(initial = emptyList())
+    ).collectAsState(initial = emptyList<Budget>())
 
     val categories by categoryViewModel.getAllCategories(userId)
-        .collectAsState(initial = emptyList())
+        .collectAsState(initial = emptyList<Category>())
 
     val recentBudgets = remember(budgets) {
-        budgets.takes(3)
+        budgets.take(3)
     }
 
     Column {

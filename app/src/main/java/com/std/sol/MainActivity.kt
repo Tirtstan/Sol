@@ -66,6 +66,7 @@ import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.std.sol.screens.CustomizeDashboardScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -201,14 +202,11 @@ fun App(userViewModel: UserViewModel) {
         AddOptionsDialog(
             onDismiss = { showAddOptionsDialog = false },
             onAddTransaction = {
-                navController.navigate("add_transaction")
-            },
+                navController.navigate(Screen.AddTransactionScreen.route)            },
             onAddCategory = {
-                navController.navigate("add_category")
-            },
+                navController.navigate(Screen.AddCategory.route)            },
             onAddBudget = {
-                navController.navigate("${Screen.AddEditBudget.route}/0")
-            }
+                navController.navigate("${Screen.AddEditBudget.route}/0")            }
         )
     }
 }
@@ -340,11 +338,38 @@ fun AppNavHost(
             AddEditBudgetScreen(navController, userId, budgetId)
         }
 
-        composable("add_category") {
+        composable(
+            route = Screen.AddCategory.route, //use route from screen object
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { 300 }, animationSpec = animationSpec1
+                ) +fadeIn(animationSpec2)
+            },
+            exitTransition = {
+                slideOutVertically(animationSpec = animationSpec1) + fadeOut(animationSpec2)
+            }
+        ) {
             AddCategoryScreen(
                 navController = navController,
                 userViewModel = userViewModel,
                 onClose = { navController.navigateUp() }
+            )
+        }
+
+        composable(
+            route = Screen.CustomizeDashboard.route,
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { 300 }, animationSpec = animationSpec1
+                ) + fadeIn(animationSpec2)
+            },
+            exitTransition = {
+                slideOutVertically(animationSpec = animationSpec1) + fadeOut(animationSpec2)
+            }
+        ) {
+            CustomizeDashboardScreen(
+                navController = navController,
+                userViewModel = userViewModel
             )
         }
     }
