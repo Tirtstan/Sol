@@ -47,15 +47,15 @@ import com.std.sol.ui.theme.Rose
 import com.std.sol.ui.theme.RoyalBright
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.ui.theme.SpaceMonoFont
-import com.std.sol.utils.PasswordUtils
 import com.std.sol.viewmodels.UserViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 
 @Composable
 fun MoreScreen(navController: NavController, userViewModel: UserViewModel?) {
     val user: User? by userViewModel?.currentUser?.collectAsState() ?: remember {
-        mutableStateOf(User(id = -1, username = "John Doe", passwordHash = ""))
+        mutableStateOf(User(id = "", username = "John Doe"))
     }
 
     var showChangeUsernameDialog by remember { mutableStateOf(false) }
@@ -160,19 +160,12 @@ fun MoreScreen(navController: NavController, userViewModel: UserViewModel?) {
                 onDismiss = { showChangeUsernameDialog = false },
                 onConfirm = { newUsername ->
                     scope.launch {
-                        val existingUser = userViewModel?.getUserByUsername(newUsername)
-                        if (existingUser != null) {
-                            Toast.makeText(context, "Username already taken", Toast.LENGTH_SHORT)
+                        user?.let {
+                            val updatedUser = it.copy(username = newUsername)
+                            userViewModel?.updateUser(updatedUser)
+                            Toast.makeText(context, "Username updated!", Toast.LENGTH_SHORT)
                                 .show()
-                        } else {
-                            user?.let {
-                                val updatedUser = it.copy(username = newUsername)
-                                userViewModel?.updateUser(updatedUser)
-                                userViewModel?.setCurrentUser(updatedUser)
-                                Toast.makeText(context, "Username updated!", Toast.LENGTH_SHORT)
-                                    .show()
-                                showChangeUsernameDialog = false
-                            }
+                            showChangeUsernameDialog = false
                         }
                     }
                 })
@@ -182,12 +175,18 @@ fun MoreScreen(navController: NavController, userViewModel: UserViewModel?) {
             ChangePasswordDialog(
                 onDismiss = { showChangePasswordDialog = false },
                 onConfirm = { newPassword ->
-                    user?.let {
-                        val newPasswordHash = PasswordUtils.hashPassword(newPassword)
-                        val updatedUser = it.copy(passwordHash = newPasswordHash)
-                        userViewModel?.updateUser(updatedUser)
-                        Toast.makeText(context, "Password updated!", Toast.LENGTH_SHORT).show()
-                        showChangePasswordDialog = false
+                    scope.launch {
+                        // Password is managed by Firebase Auth, not stored in User entity
+                        val firebaseUser = userViewModel?.getCurrentFirebaseUser()
+                        if (firebaseUser != null) {
+                            try {
+                                firebaseUser.updatePassword(newPassword).await()
+                                Toast.makeText(context, "Password updated!", Toast.LENGTH_SHORT).show()
+                                showChangePasswordDialog = false
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Failed to update password: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 })
         }

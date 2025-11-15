@@ -2,35 +2,32 @@ package com.std.sol.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.std.sol.daos.CategoryDao
 import com.std.sol.entities.Category
+import com.std.sol.repositories.CategoryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-class CategoryViewModel(private val categoryDao: CategoryDao) : ViewModel() {
+class CategoryViewModel(private val categoryRepository: CategoryRepository) : ViewModel() {
 
-    fun getAllCategories(userId: Int, descending: Boolean = false): Flow<List<Category>> {
-        return categoryDao.getAllCategories(userId, descending)
+    fun getAllCategories(userId: String, descending: Boolean = false): Flow<List<Category>> {
+        return categoryRepository.getAllCategories(userId, descending)
     }
 
-    suspend fun getCategoryById(id: Int): Category? {
-        return categoryDao.getCategoryById(id)
+    suspend fun getCategoryById(userId: String, id: String): Category? {
+        return categoryRepository.getCategoryById(userId, id)
     }
 
-    suspend fun getCategoryByName(name: String): Category? {
-        return categoryDao.getCategoryByName(name)
+    suspend fun getCategoryByName(userId: String, name: String): Category? {
+        return categoryRepository.getCategoryByName(userId, name)
     }
 
-    fun addCategory(category: Category): Long {
-        var id: Long = -1
+    fun addCategory(userId: String, category: Category) {
         viewModelScope.launch {
-            id = categoryDao.insertCategory(category)
+            categoryRepository.addCategory(userId, category)
         }
-
-        return id
     }
 
-    fun ensureDefaultCategories(userId: Int) {
+    fun ensureDefaultCategories(userId: String) {
         viewModelScope.launch {
             val defaultCategories = listOf(
                 Triple("Food", "#FF6B6B", "ic_food"),
@@ -46,11 +43,12 @@ class CategoryViewModel(private val categoryDao: CategoryDao) : ViewModel() {
             )
 
             for ((name, color, icon) in defaultCategories) {
-                val existing = categoryDao.getCategoryByNameForUser(name, userId)
+                val existing = categoryRepository.getCategoryByName(userId, name)
                 if (existing == null) {
-                    categoryDao.insertCategory(
+                    categoryRepository.addCategory(
+                        userId,
                         Category(
-                            id = 0,
+                            id = "",
                             userId = userId,
                             name = name,
                             color = color,
@@ -62,16 +60,15 @@ class CategoryViewModel(private val categoryDao: CategoryDao) : ViewModel() {
         }
     }
 
-    fun updateCategory(category: Category) {
+    fun updateCategory(userId: String, category: Category) {
         viewModelScope.launch {
-            categoryDao.updateCategory(category)
+            categoryRepository.updateCategory(userId, category)
         }
     }
 
-    fun deleteCategory(category: Category) {
+    fun deleteCategory(userId: String, category: Category) {
         viewModelScope.launch {
-            categoryDao.deleteCategory(category)
+            categoryRepository.deleteCategory(userId, category)
         }
     }
-
 }

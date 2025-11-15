@@ -28,8 +28,12 @@ import androidx.navigation.compose.rememberNavController
 import com.std.sol.Screen
 import com.std.sol.SessionManager
 import com.std.sol.components.BudgetComponent
-import com.std.sol.databases.DatabaseProvider
+import com.std.sol.entities.Category
 import com.std.sol.entities.User
+import com.std.sol.repositories.BudgetRepository
+import com.std.sol.repositories.CategoryRepository
+import com.std.sol.repositories.TransactionRepository
+import com.std.sol.repositories.UserRepository
 import com.std.sol.ui.theme.*
 import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
@@ -45,23 +49,33 @@ import androidx.compose.material.icons.filled.Edit
 @Composable
 fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?) {
     val context = LocalContext.current
-    val db = remember { DatabaseProvider.getDatabase(context.applicationContext) }
+    val userRepository = remember { UserRepository() }
+    val transactionRepository = remember { TransactionRepository() }
+    val categoryRepository = remember { CategoryRepository() }
+    val budgetRepository = remember { BudgetRepository() }
     val sessionManager = remember { SessionManager(context.applicationContext) }
-    val factory = remember { ViewModelFactory(db, sessionManager) }
-
+    val factory = remember { 
+        ViewModelFactory(
+            userRepository,
+            transactionRepository,
+            categoryRepository,
+            budgetRepository,
+            sessionManager
+        )
+    }
     val budgetViewModel: BudgetViewModel = viewModel(factory = factory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = factory)
 
     val user: User? by userViewModel?.currentUser?.collectAsState() ?: remember {
-        mutableStateOf(User(id = -1, username = "John Doe", passwordHash = ""))
+        mutableStateOf(User(id = "", username = "John Doe"))
     }
-    val userId = user?.id ?: 0
+    val userId = user?.id ?: ""
 
     val dashboardViewModel: DashboardViewModel = viewModel(factory = factory)
     val widgets by dashboardViewModel.dashboardWidgets.collectAsState()
 
     var showBudgetSheet by remember { mutableStateOf(false) }
-    var editBudgetId by remember { mutableStateOf<Int?>(null) }
+    var editBudgetId by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -141,7 +155,8 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
         }
     }
 
-    if (showBudgetSheet && editBudgetId != null && editBudgetId != 0) {
+    val currentBudgetId = editBudgetId
+    if (showBudgetSheet && currentBudgetId != null && currentBudgetId.isNotBlank()) {
         val sheetState = rememberModalBottomSheetState(
             skipPartiallyExpanded = false
         )
@@ -177,7 +192,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                     AddEditBudgetScreen(
                         navController = navController,
                         userId = userId,
-                        budgetId = editBudgetId ?: 0,
+                        budgetId = currentBudgetId,
                         onClose = {
                             showBudgetSheet = false
                             editBudgetId = null

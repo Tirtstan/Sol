@@ -35,7 +35,6 @@ import com.std.sol.Screen
 import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
 import com.std.sol.components.StaggeredItem
-import com.std.sol.entities.User
 import com.std.sol.ui.theme.Amber
 import com.std.sol.ui.theme.Ivory
 import com.std.sol.ui.theme.SolTheme
@@ -47,6 +46,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) {
+    var email by rememberSaveable { mutableStateOf("") }
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
@@ -93,6 +93,18 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
 
         StaggeredItem(index = 2) {
             SpaceTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = "Email",
+                placeholder = "Enter your email",
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        StaggeredItem(index = 3) {
+            SpaceTextField(
                 value = username,
                 onValueChange = { username = it },
                 label = stringResource(R.string.username),
@@ -103,7 +115,7 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        StaggeredItem(index = 3) {
+        StaggeredItem(index = 4) {
             SpaceTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -138,7 +150,7 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        StaggeredItem(index = 4) {
+        StaggeredItem(index = 5) {
             SpaceTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
@@ -166,7 +178,7 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        StaggeredItem(index = 5) {
+        StaggeredItem(index = 6) {
             val loginText = buildAnnotatedString {
                 withStyle(SpanStyle(color = Ivory)) {
                     append(stringResource(R.string.already_have_an_account))
@@ -197,15 +209,15 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        StaggeredItem(index = 6) {
+        StaggeredItem(index = 7) {
             SpaceButton(
                 text = stringResource(R.string.sign_up),
                 onClick = {
                     handleRegistration(
-                        scope, userViewModel, username, password, context, navController
+                        scope, userViewModel, email, username, password, context, navController
                     )
                 },
-                enabled = username.isNotBlank() && password.isNotBlank() && passwordsMatch,
+                enabled = email.isNotBlank() && username.isNotBlank() && password.isNotBlank() && passwordsMatch && isPasswordValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
@@ -218,45 +230,22 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel?) 
 private fun handleRegistration(
     scope: CoroutineScope,
     userViewModel: UserViewModel?,
+    email: String,
     username: String,
     password: String,
     context: Context,
     navController: NavController
 ) {
     scope.launch {
-        val existingUser = userViewModel?.getUserByUsername(username)
-        if (existingUser != null) {
-            Toast.makeText(context, "Username already taken", Toast.LENGTH_SHORT).show()
-        } else {
-
-            val passwordHash = PasswordUtils.hashPassword(password)
-            val newUser = User(id = 0, username = username, passwordHash = passwordHash)
-
-            val newUserId =
-                userViewModel?.addUserAndWait(newUser)
-
-            if (newUserId != null && newUserId > 0) {
-                val createdUser = userViewModel.getUserByUsername(username)
-                if (createdUser != null) {
-                    userViewModel.setCurrentUser(createdUser)
-                    Toast.makeText(context, "Registration successful!", Toast.LENGTH_SHORT).show()
-                    navController.navigate(Screen.Dashboard.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
-                } else {
-                    Toast.makeText(
-                        context,
-                        "Registration failed. Please try again.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } else {
-                Toast.makeText(
-                    context,
-                    "Registration failed. Please try again.",
-                    Toast.LENGTH_SHORT
-                ).show()
+        val result = userViewModel?.register(email, password, username)
+        if (result?.isSuccess == true) {
+            Toast.makeText(context, "Registration successful!", Toast.LENGTH_SHORT).show()
+            navController.navigate(Screen.Dashboard.route) {
+                popUpTo(Screen.Login.route) { inclusive = true }
             }
+        } else {
+            val errorMessage = result?.exceptionOrNull()?.message ?: "Registration failed. Please try again."
+            Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
         }
     }
 }
