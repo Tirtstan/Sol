@@ -20,7 +20,7 @@ class CustomizeDashboardViewModel(
     val enabledWidgets = mutableStateListOf<DashboardWidgetType>()
 
     //loads user's currently saved settings into the list
-    fun loadSettings(userId: Int) {
+    fun loadSettings(userId: String) {
         viewModelScope.launch {
             //.first() gets the most recent value from the flow
             val savedList = sessionManager.getDashboardWidgets(userId).first()
@@ -30,7 +30,7 @@ class CustomizeDashboardViewModel(
     }
 
     //saves the current state of the list back to DataStore
-    fun saveSettings(userId: Int) {
+    fun saveSettings(userId: String) {
         viewModelScope.launch {
             //save the current contents of the modifiable list
             sessionManager.saveDashboardWidget(userId, enabledWidgets.toList())

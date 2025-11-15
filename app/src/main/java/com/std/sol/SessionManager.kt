@@ -46,12 +46,12 @@ class SessionManager(context: Context) {
     }
 
     //private helper to create a unique key for each user's dashboard
-    private fun dashboardWidgetsKey(userId: Int) =
+    private fun dashboardWidgetsKey(userId: String) =
         stringPreferencesKey("dashboard_widgets_user_${userId}")
 
     //Flow to READ user's saved widget list
     //automatically update when settings are changed
-    fun getDashboardWidgets(userId: Int): Flow<List<DashboardWidgetType>> {
+    fun getDashboardWidgets(userId: String): Flow<List<DashboardWidgetType>> {
         return appContext.dataStore.data.map { preferences ->
             //get saved string
             //if nothing is saved, use "RECENT_BUDGETS" as the default
@@ -72,7 +72,7 @@ class SessionManager(context: Context) {
         }
     }
 
-    suspend fun saveDashboardWidget(userId: Int, widgets: List<DashboardWidgetType>) {
+    suspend fun saveDashboardWidget(userId: String, widgets: List<DashboardWidgetType>) {
         appContext.dataStore.edit { preferences ->
 
             val widgetString = widgets.joinToString(",") { it.name }

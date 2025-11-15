@@ -4,18 +4,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.std.sol.SessionManager
 import com.std.sol.components.DashboardWidgetType
-import com.std.sol.databases.AppDatabase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModel(
-    db: AppDatabase,
     sessionManager: SessionManager
 ) : ViewModel() {
-    //get Flow<Int?> of logged-in user's ID
+    //get Flow<String?> of logged-in user's ID
     private val userIdFlow = sessionManager.userIdFlow
 
     val dashboardWidgets: StateFlow<List<DashboardWidgetType>> =

@@ -13,13 +13,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.std.sol.Screen
-import com.std.sol.daos.BudgetDao
+import com.std.sol.components.BudgetComponent
 import com.std.sol.entities.Category
 import com.std.sol.ui.theme.Ivory
 import com.std.sol.ui.theme.SpaceMonoFont
 import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.entities.Budget
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 enum class DashboardWidgetType{
     RECENT_BUDGETS,
@@ -33,9 +36,8 @@ fun RecentBudgetsWidget(
     navController: NavController,
     budgetViewModel: BudgetViewModel,
     categoryViewModel: CategoryViewModel,
-    budgetDao: BudgetDao, //for BudgetItem
-    userId: Int,
-    onEditBudget: (Int) -> Unit //new callback
+    userId: String,
+    onEditBudget: (String) -> Unit //new callback
 ) {
     val budgets by budgetViewModel.getAllBudgets(
         userId = userId,
@@ -86,10 +88,11 @@ fun RecentBudgetsWidget(
             ) {
                 recentBudgets.forEach { budget ->
                     val category = categories.find { it.id == budget.categoryId }
-                    BudgetItem(
+                    BudgetItemWidget(
                         budget = budget,
                         category = category,
-                        budgetDao = budgetDao,
+                        budgetViewModel = budgetViewModel,
+                        userId = userId,
                         onNavigate = {
                             onEditBudget(budget.id)
                         }
@@ -127,4 +130,32 @@ fun RecentBudgetsWidget(
             }
         }
     }
+}
+
+@Composable
+fun BudgetItemWidget(
+    budget: Budget,
+    category: Category?,
+    budgetViewModel: BudgetViewModel,
+    userId: String,
+    onNavigate: () -> Unit
+) {
+    // Update current amount when budget changes
+    LaunchedEffect(budget.id, budget.categoryId, budget.startDate, budget.endDate) {
+        budgetViewModel.updateCurrentAmount(
+            userId = userId,
+            categoryId = budget.categoryId,
+            start = budget.startDate,
+            end = budget.endDate
+        )
+    }
+
+    val currentAmount by budgetViewModel.currentAmount.collectAsState()
+
+    BudgetComponent(
+        budget = budget,
+        category = category,
+        currentAmount = currentAmount,
+        onClick = onNavigate
+    )
 }

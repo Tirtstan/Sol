@@ -116,7 +116,7 @@ fun CombinedPresetsDropdown(
                         }
 
                         item {
-                            Divider(
+                            HorizontalDivider(
                                 color = Color(0xFF3a5c85),
                                 thickness = 1.dp,
                                 modifier = Modifier

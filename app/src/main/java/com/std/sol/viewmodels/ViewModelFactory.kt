@@ -36,10 +36,12 @@ class ViewModelFactory(
 
         //teaches factory how to create the new ViewModel
         if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
-            return DashboardViewModel(db, sessionManager) as T
+            @Suppress("UNCHECKED_CAST")
+            return DashboardViewModel(sessionManager) as T
         }
 
         if (modelClass.isAssignableFrom(CustomizeDashboardViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
             return CustomizeDashboardViewModel(sessionManager) as T
         }
 
