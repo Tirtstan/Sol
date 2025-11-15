@@ -3,6 +3,7 @@ package com.std.sol.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.std.sol.SessionManager
+import com.std.sol.components.DashboardWidgetType
 import com.std.sol.repositories.BudgetRepository
 import com.std.sol.repositories.CategoryRepository
 import com.std.sol.repositories.TransactionRepository
@@ -32,6 +33,16 @@ class ViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return BudgetViewModel(budgetRepository) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
+
+        //teaches factory how to create the new ViewModel
+        if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
+            return DashboardViewModel(db, sessionManager) as T
+        }
+
+        if (modelClass.isAssignableFrom(CustomizeDashboardViewModel::class.java)) {
+            return CustomizeDashboardViewModel(sessionManager) as T
+        }
+
+       throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

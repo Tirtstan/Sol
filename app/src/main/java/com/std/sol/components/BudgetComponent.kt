@@ -36,6 +36,95 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
+fun BudgetItem(
+    budget: Budget,
+    category: Category?,
+    budgetDao: BudgetDao,
+    onNavigate: () -> Unit = {}
+) {
+    Card(
+        onClick = onNavigate,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(72.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = Color.Transparent
+            ),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp
+        )
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .background(
+                        brush =
+                            Brush.horizontalGradient(
+                                listOf(
+                                    Indigo,
+                                    IndigoLight
+                                )
+                            )
+                    )
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(
+                                getCategoryColor(
+                                    category?.name ?: "other"
+                                )
+                            ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector =
+                            getCategoryIcon(
+                                category?.name ?: ""
+                            ),
+                        contentDescription = category?.name,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = budget.name,
+                        color = Color(0xFFFFFDF0),
+                        fontFamily = SpaceMonoFont,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text =
+                            "R${"%.2f".format(budgetDao.getTotalForBudget(budget.id))} / R${"%.2f".format(budget.maxGoalAmount)}",
+                        color = Ivory.copy(alpha = 0.9f),
+                        fontSize = 13.sp,
+                        fontFamily = SpaceMonoFont,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun BudgetComponent(
     budget: Budget,
     category: Category?,

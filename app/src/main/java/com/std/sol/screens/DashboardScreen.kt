@@ -2,8 +2,9 @@ package com.std.sol.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+//import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -38,7 +39,12 @@ import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
-
+import com.std.sol.components.RecentBudgetsWidget
+import androidx.compose.foundation.lazy.items
+import com.std.sol.components.DashboardWidgetType
+import com.std.sol.viewmodels.DashboardViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?) {
@@ -65,17 +71,8 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
     }
     val userId = user?.id ?: ""
 
-    val budgets by budgetViewModel.getAllBudgets(
-        userId = userId,
-        descending = true
-    ).collectAsState(initial = emptyList())
-
-    val categories by categoryViewModel.getAllCategories(userId)
-        .collectAsState(initial = emptyList())
-
-    val recentBudgets = remember(budgets) {
-        budgets.take(3)
-    }
+    val dashboardViewModel: DashboardViewModel = viewModel(factory = factory)
+    val widgets by dashboardViewModel.dashboardWidgets.collectAsState()
 
     var showBudgetSheet by remember { mutableStateOf(false) }
     var editBudgetId by remember { mutableStateOf<String?>(null) }
@@ -113,80 +110,45 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 )
             }
         } else {
-            if (recentBudgets.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Recent Budgets",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = SpaceMonoFont,
-                        color = Color(0xFFFFFDF0)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = {
+                    //navigate to the new screen
+                    navController.navigate(Screen.CustomizeDashboard.route)
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Customize Dashboard",
+                        tint = Color(0xFFF4C047)
                     )
-                    TextButton(
-                        onClick = { navController.navigate(Screen.Budgets.route) }
-                    ) {
-                        Text(
-                            text = "View All",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            color = Color(0xFFF4C047)
-                        )
-                    }
                 }
+            }
+            val budgetDao = db.budgetDao()
 
-                Spacer(modifier = Modifier.height(12.dp))
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp) //adds space between widget
+            ) {
+                items(widgets) { widgetType ->
+                    //checks the list and builds the UI
+                    when (widgetType) {
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(recentBudgets) { budget ->
-                        val category = categories.find { it.id == budget.categoryId }
-                        BudgetItem(
-                            budget = budget,
-                            category = category,
-                            budgetViewModel = budgetViewModel,
-                            userId = userId,
-                            onNavigate = {
-                                editBudgetId = budget.id
-                                showBudgetSheet = true
-                            }
-                        )
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "No budgets yet. Create one to get started!",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Ivory,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { navController.navigate("${Screen.AddEditBudget.route}/0") },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFf4c047),
-                                contentColor = Color(0xFF0c1327)
-                            )
-                        ) {
-                            Text(
-                                "Create Budget",
-                                style = MaterialTheme.typography.labelLarge
+                        DashboardWidgetType.RECENT_BUDGETS -> {
+                            RecentBudgetsWidget(
+                                navController = navController,
+                                budgetViewModel = budgetViewModel,
+                                categoryViewModel = categoryViewModel,
+                                budgetDao = budgetDao,
+                                userId = userId,
+                                onEditBudget = { budgetID ->
+                                    editBudgetId = budgetID
+                                    showBudgetSheet = true
+                                }
                             )
                         }
+                        //when adding new widgets, you'll add them here
                     }
                 }
             }
