@@ -125,7 +125,6 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                     )
                 }
             }
-            val budgetDao = db.budgetDao()
 
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -140,7 +139,6 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                                 navController = navController,
                                 budgetViewModel = budgetViewModel,
                                 categoryViewModel = categoryViewModel,
-                                budgetDao = budgetDao,
                                 userId = userId,
                                 onEditBudget = { budgetID ->
                                     editBudgetId = budgetID
