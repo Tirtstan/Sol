@@ -43,6 +43,7 @@ import com.std.sol.ui.theme.Lime
 import com.std.sol.viewmodels.CustomizeDashboardViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
+import com.std.sol.ui.theme.DeepSpaceBase
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +85,7 @@ fun CustomizeDashboardScreen(
     }
 
     Scaffold(
+        containerColor = DeepSpaceBase,
         topBar = {
             TopAppBar(
                 title = { Text("Customise Dashboard", color = Ivory) },

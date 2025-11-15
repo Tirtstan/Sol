@@ -45,6 +45,10 @@ import com.std.sol.components.DashboardWidgetType
 import com.std.sol.viewmodels.DashboardViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import com.std.sol.components.ExpenseSummaryWidget
+import com.std.sol.components.RecentTransactionWidget
+import com.std.sol.viewmodels.TransactionViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?) {
@@ -65,6 +69,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
     }
     val budgetViewModel: BudgetViewModel = viewModel(factory = factory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = factory)
+    val transactionViewModel: TransactionViewModel = viewModel(factory = factory)
 
     val user: User? by userViewModel?.currentUser?.collectAsState() ?: remember {
         mutableStateOf(User(id = "", username = "John Doe"))
@@ -147,6 +152,20 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                             )
                         }
                         //when adding new widgets, you'll add them here
+                        DashboardWidgetType.RECENT_TRANSACTIONS -> {
+                            RecentTransactionWidget(
+                                navController = navController,
+                                transactionViewModel = transactionViewModel,
+                                userId = userId
+                            )
+                        }
+
+                        DashboardWidgetType.CATEGORY_SUMMARY_CIRCLE -> {
+                            ExpenseSummaryWidget(
+                                transactionViewModel = transactionViewModel,
+                                userId = userId
+                            )
+                        }
                     }
                 }
             }
