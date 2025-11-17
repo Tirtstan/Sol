@@ -1,5 +1,6 @@
 package com.std.sol.components
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.*
@@ -23,11 +24,18 @@ import com.std.sol.entities.Budget
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontStyle
+import com.std.sol.entities.Transaction
+import com.std.sol.viewmodels.TransactionViewModel
+import androidx.compose.foundation.Canvas
+import com.std.sol.ui.theme.SpaceMonoFont
 
 enum class DashboardWidgetType{
     RECENT_BUDGETS,
-    //CATEGORY_SUMMARY_PIECHART
-    //RECENT_TRANSACTIONS
+    CATEGORY_SUMMARY_CIRCLE,
+    RECENT_TRANSACTIONS
     //SAVING_GOALS
 }
 
@@ -158,4 +166,188 @@ fun BudgetItemWidget(
         currentAmount = currentAmount,
         onClick = onNavigate
     )
+}
+
+@Composable
+fun RecentTransactionWidget(
+    navController: NavController,
+    transactionViewModel: TransactionViewModel,
+    userId: String
+) {
+    //fetch recent transactions
+    val recentTransactions by transactionViewModel.getRecentTransactions(userId)
+        .collectAsState(initial = emptyList())
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Recent Transactions",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Normal,
+                fontFamily = SpaceMonoFont,
+                color = Color(0xFFFFFDF0)
+            )
+            TextButton(
+                onClick = { navController.navigate(Screen.Transactions.route) }
+            ) {
+                Text(
+                    text = "View All",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal
+                    ),
+                    color = Color(0xFFF4C047)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (recentTransactions.isNotEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                recentTransactions.forEach { transaction ->
+                    //can create TransactionItem composable, but for now, display text
+                    TransactionItemWidget(transaction = transaction)
+                }
+            }
+        } else {
+            Text(
+                "No transactions recorded yet.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Ivory,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+            )
+        }
+    }
+}
+
+//helper composable for transaction item
+@Composable
+fun TransactionItemWidget(transaction: com.std.sol.entities.Transaction) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = transaction.name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Ivory
+        )
+
+        val transactionTypeString = transaction.type
+        val isExpense = transactionTypeString == com.std.sol.entities.TransactionType.EXPENSE.name
+        Text(
+            text = "€${"%.2f".format(transaction.amount)}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (isExpense) Color.Red else Color.Green
+        )
+    }
+}
+
+@Composable
+fun ExpenseCircle(
+    totalSpent: Double,
+    categoryColor: Color? = null
+) {
+    Box(
+        modifier = Modifier.size(200.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth: Float = 12.dp.toPx()
+            val radius = (size.minDimension - strokeWidth) / 2
+            val center = center
+
+            if (categoryColor != null) {
+                drawCircle(
+                    color = categoryColor,
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = strokeWidth)
+                )
+            } else {
+                drawCircle(
+                    brush = Brush.sweepGradient(
+                        colors = listOf(
+                            Color(0xFFf4680b),
+                            Color(0xFFf4c047),
+                            Color(0xFFb42313),
+                            Color(0xFFf45d92),
+                            Color(0xFFf4680b)
+                        ),
+                        center = center
+                    ),
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = strokeWidth)
+                )
+            }
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "R${String.format("%.2f", totalSpent)}",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = SpaceMonoFont,
+                color = Color(0xFFFFFDF0)
+            )
+            Text(
+                text = "Expenses",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal,
+                    fontStyle = FontStyle.Italic
+                ),
+                color = Color(0xFFF4C047)
+            )
+        }
+
+    }
+}
+
+@Composable
+fun ExpenseSummaryWidget(
+    transactionViewModel: TransactionViewModel,
+    userId: String
+) {
+    val  allTransactions by transactionViewModel.getAllTransactions(userId)
+        .collectAsState(initial = emptyList())
+
+    val expenseSum = allTransactions
+        .filter { it.type == com.std.sol.entities.TransactionType.EXPENSE.name }
+        .sumOf { it.amount }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Total Expenses", //idk if i should name it piechart or something
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Normal,
+            fontFamily = SpaceMonoFont,
+            color = Color(0xFFFFFDF0)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        ExpenseCircle(
+            totalSpent = expenseSum,
+            categoryColor = null //use default gradient
+        )
+    }
 }
