@@ -73,14 +73,15 @@ fun AddEditBudgetScreen(
 
     val isEditing = budgetId.isNotBlank()
 
-    var name by rememberSaveable { mutableStateOf("") }
-    var description by rememberSaveable { mutableStateOf("") }
-    var minGoal by rememberSaveable { mutableStateOf("") }
-    var maxGoal by rememberSaveable { mutableStateOf("") }
-    var startDate by rememberSaveable { mutableStateOf(Timestamp.now()) }
-    var endDate by rememberSaveable { mutableStateOf(Timestamp.now()) }
+    // Use rememberSaveable for new budgets, but regular remember for editing to ensure state updates properly
+    var name by if (isEditing) remember { mutableStateOf("") } else rememberSaveable { mutableStateOf("") }
+    var description by if (isEditing) remember { mutableStateOf("") } else rememberSaveable { mutableStateOf("") }
+    var minGoal by if (isEditing) remember { mutableStateOf("") } else rememberSaveable { mutableStateOf("") }
+    var maxGoal by if (isEditing) remember { mutableStateOf("") } else rememberSaveable { mutableStateOf("") }
+    var startDate by if (isEditing) remember { mutableStateOf(Timestamp.now()) } else rememberSaveable { mutableStateOf(Timestamp.now()) }
+    var endDate by if (isEditing) remember { mutableStateOf(Timestamp.now()) } else rememberSaveable { mutableStateOf(Timestamp.now()) }
 
-    var selectedCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedCategoryId by if (isEditing) remember { mutableStateOf<String?>(null) } else rememberSaveable { mutableStateOf<String?>(null) }
 
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -95,31 +96,48 @@ fun AddEditBudgetScreen(
 
     LaunchedEffect(budgetId, userId) {
         if (isEditing && userId.isNotBlank() && budgetId.isNotBlank()) {
-            val existing = budgetViewModel.getBudgetById(userId, budgetId)
-            existing?.let { b ->
-                name = b.name
-                description = b.description ?: ""
-                minGoal = "%.2f".format(b.minGoalAmount)
-                maxGoal = "%.2f".format(b.maxGoalAmount)
-                startDate = b.startDate
-                endDate = b.endDate
-                selectedCategoryId = b.categoryId
-            } ?: run {
+            isLoading = true
+            try {
+                val existing = budgetViewModel.getBudgetById(userId, budgetId)
+                if (existing != null) {
+                    name = existing.name
+                    description = existing.description ?: ""
+                    minGoal = "%.2f".format(existing.minGoalAmount)
+                    maxGoal = "%.2f".format(existing.maxGoalAmount)
+                    startDate = existing.startDate
+                    endDate = existing.endDate
+                    selectedCategoryId = existing.categoryId
+                    isLoading = false
+                } else {
+                    isLoading = false
+                    onClose?.invoke() ?: navController.popBackStack()
+                }
+            } catch (e: Exception) {
+                isLoading = false
+                // Handle error - could show error message
                 onClose?.invoke() ?: navController.popBackStack()
             }
+        } else {
+            isLoading = false
         }
-        isLoading = false
     }
 
-    LaunchedEffect(categories) {
-        if (selectedCategoryId == null && categories.isNotEmpty()) {
+    LaunchedEffect(categories, isEditing) {
+        // Only auto-select first category when creating a new budget, not when editing
+        if (!isEditing && selectedCategoryId == null && categories.isNotEmpty()) {
             selectedCategoryId = categories.firstOrNull()?.id
         }
     }
 
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-    val formValid =
-        name.isNotBlank() && maxGoal.toDoubleOrNull() != null && maxGoal.toDouble()!! > 0.0 && selectedCategory != null
+    val formValid = remember(name, maxGoal, selectedCategoryId, isLoading) {
+        !isLoading && 
+        name.isNotBlank() && 
+        maxGoal.toDoubleOrNull() != null && 
+        maxGoal.toDoubleOrNull()!! > 0.0 && 
+        selectedCategoryId != null &&
+        selectedCategoryId!!.isNotBlank()
+    }
 
     Box(
         modifier = modifier
@@ -304,23 +322,25 @@ fun AddEditBudgetScreen(
                     text = if (isEditing) "UPDATE" else "SAVE",
                     onClick = {
                         if (!formValid) return@SpaceButton
-                        val budget = Budget(
-                            id = if (isEditing) budgetId else "",
-                            userId = userId,
-                            categoryId = selectedCategoryId ?: "",
-                            name = name,
-                            description = description.ifBlank { null },
-                            minGoalAmount = minGoal.toDoubleOrNull() ?: 0.0,
-                            maxGoalAmount = maxGoal.toDoubleOrNull() ?: 0.0,
-                            startDate = startDate,
-                            endDate = endDate
-                        )
-                        if (isEditing) {
-                            budgetViewModel.updateBudget(userId, budget)
-                        } else {
-                            budgetViewModel.addBudget(userId, budget)
+                        scope.launch {
+                            val budget = Budget(
+                                id = if (isEditing) budgetId else "",
+                                userId = userId,
+                                categoryId = selectedCategoryId ?: "",
+                                name = name,
+                                description = description.ifBlank { null },
+                                minGoalAmount = minGoal.toDoubleOrNull() ?: 0.0,
+                                maxGoalAmount = maxGoal.toDoubleOrNull() ?: 0.0,
+                                startDate = startDate,
+                                endDate = endDate
+                            )
+                            if (isEditing) {
+                                budgetViewModel.updateBudget(userId, budget)
+                            } else {
+                                budgetViewModel.addBudget(userId, budget)
+                            }
+                            onClose?.invoke() ?: navController.popBackStack()
                         }
-                        onClose?.invoke() ?: navController.popBackStack()
                     },
                     enabled = formValid,
                     modifier = Modifier.weight(1f)

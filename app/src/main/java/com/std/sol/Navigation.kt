@@ -69,14 +69,15 @@ private fun createNavigationBarItemColors() = NavigationBarItemDefaults.colors(
 @Composable
 fun BottomNavigationBarWithFAB(
     navController: NavController,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val items = listOf(
         Screen.Dashboard, Screen.Transactions, null, Screen.Budgets, Screen.More
     )
 
     Box(
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         NavigationBar(
             containerColor = Color.Transparent,

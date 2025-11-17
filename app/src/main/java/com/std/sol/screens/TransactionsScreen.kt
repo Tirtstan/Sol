@@ -362,7 +362,10 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(12.dp))
-                                        Text(category.name)
+                                        Text(
+                                            category.name,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
                                 },
                                 onClick = {

@@ -169,13 +169,18 @@ fun CustomizeDashboardScreen(
                             Switch(
                                 checked = widget in enabledWidgets,
                                 onCheckedChange = { isChecked ->
+                                    // Prevent disabling the last widget
+                                    if (!isChecked && enabledWidgets.size == 1) {
+                                        return@Switch // Don't allow disabling the last widget
+                                    }
+                                    
                                     if (isChecked) {
                                         enabledWidgets.add(widget)
                                     } else {
                                         enabledWidgets.remove(widget)
                                     }
                                     // Save immediately when toggle changes
-                                    if (userId.isNotBlank()) {
+                                    if (userId.isNotBlank() && enabledWidgets.isNotEmpty()) {
                                         viewModel.saveSettings(userId)
                                     }
                                 },

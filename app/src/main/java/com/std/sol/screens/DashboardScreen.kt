@@ -77,7 +77,9 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
     val userId = user?.id ?: ""
 
     val dashboardViewModel: DashboardViewModel = viewModel(factory = factory)
-    val widgets by dashboardViewModel.dashboardWidgets.collectAsState()
+    val widgets by dashboardViewModel.dashboardWidgets.collectAsState(
+        initial = DashboardWidgetType.entries.toList()
+    )
 
     var showBudgetSheet by remember { mutableStateOf(false) }
     var editBudgetId by remember { mutableStateOf<String?>(null) }
@@ -131,7 +133,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp) //adds space between widget
             ) {
-                items(widgets) { widgetType ->
+                items(widgets, key = { it.name }) { widgetType ->
                     //checks the list and builds the UI
                     when (widgetType) {
 
