@@ -36,8 +36,11 @@ import com.std.sol.utils.*
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
-import com.std.sol.databases.DatabaseProvider
 import com.std.sol.SessionManager
+import com.std.sol.repositories.BudgetRepository
+import com.std.sol.repositories.CategoryRepository
+import com.std.sol.repositories.TransactionRepository
+import com.std.sol.repositories.UserRepository
 import androidx.core.graphics.toColorInt
 
 @Composable
@@ -48,16 +51,26 @@ fun AddCategoryScreen(
     onClose: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
-    val viewModelFactory = ViewModelFactory(
-        DatabaseProvider.getDatabase(context),
-        SessionManager(context)
-    )
+    val userRepository = remember { UserRepository() }
+    val transactionRepository = remember { TransactionRepository() }
+    val categoryRepository = remember { CategoryRepository() }
+    val budgetRepository = remember { BudgetRepository() }
+    val sessionManager = remember { SessionManager(context.applicationContext) }
+    val viewModelFactory = remember { 
+        ViewModelFactory(
+            userRepository,
+            transactionRepository,
+            categoryRepository,
+            budgetRepository,
+            sessionManager
+        )
+    }
     val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
 
     val user: User? by userViewModel?.currentUser?.collectAsState() ?: remember {
-        mutableStateOf(User(id = -1, username = "John Doe", passwordHash = ""))
+        mutableStateOf(User(id = "", username = "John Doe"))
     }
-    val userId = user?.id ?: return
+    val userId = user?.id ?: ""
 
     // STATE (pre-filled in edit mode)
     var categoryName by remember { mutableStateOf(categoryToEdit?.name ?: "") }
@@ -95,10 +108,10 @@ fun AddCategoryScreen(
                 Spacer(modifier = Modifier.size(24.dp))
                 Text(
                     text = if (categoryToEdit == null) "NEW CATEGORY" else "EDIT CATEGORY",
-                    color = Color(0xFFFFFDF0),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFFFFFDF0)
                 )
                 IconButton(onClick = {
                     if (onClose != null) onClose()
@@ -154,10 +167,10 @@ fun AddCategoryScreen(
                 // Color Selection
                 Text(
                     text = "SELECT COLOR",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = Color(0xFFFFFDF0),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -189,10 +202,10 @@ fun AddCategoryScreen(
                 // Icon Selection
                 Text(
                     text = "SELECT ICON",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = Color(0xFFFFFDF0),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -244,7 +257,7 @@ fun AddCategoryScreen(
                         SpaceButton(
                             text = "DELETE",
                             onClick = {
-                                categoryViewModel.deleteCategory(categoryToEdit)
+                                categoryViewModel.deleteCategory(userId, categoryToEdit)
                                 if (onClose != null) onClose()
                                 else navController.navigateUp()
                             },
@@ -265,16 +278,16 @@ fun AddCategoryScreen(
                                 val hexColor = String.format("#%08X", colorInt)
 
                                 val category = Category(
-                                    id = categoryToEdit?.id ?: 0,
+                                    id = categoryToEdit?.id ?: "",
                                     userId = userId,
                                     name = categoryName,
                                     color = hexColor,
                                     icon = getStringFromIcon(selectedIcon)
                                 )
                                 if (categoryToEdit == null) {
-                                    categoryViewModel.addCategory(category)
+                                    categoryViewModel.addCategory(userId, category)
                                 } else {
-                                    categoryViewModel.updateCategory(category)
+                                    categoryViewModel.updateCategory(userId, category)
                                 }
                                 if (onClose != null) onClose()
                                 else navController.navigateUp()

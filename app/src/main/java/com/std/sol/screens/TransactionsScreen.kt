@@ -44,13 +44,18 @@ import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.TransactionViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
-import com.std.sol.databases.DatabaseProvider
 import com.std.sol.SessionManager
 import com.std.sol.entities.User
+import com.std.sol.repositories.BudgetRepository
+import com.std.sol.repositories.CategoryRepository
+import com.std.sol.repositories.TransactionRepository
+import com.std.sol.repositories.UserRepository
 import com.std.sol.ui.theme.*
+import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.net.toUri
+import com.std.sol.components.ExpenseCircle
 
 enum class TransactionFilterType { RECENTS, MONTH, WEEK, CUSTOM }
 
@@ -58,17 +63,27 @@ enum class TransactionFilterType { RECENTS, MONTH, WEEK, CUSTOM }
 @Composable
 fun TransactionsScreen(navController: NavController, userViewModel: UserViewModel?) {
     val context = LocalContext.current
-    val viewModelFactory = ViewModelFactory(
-        DatabaseProvider.getDatabase(context),
-        SessionManager(context)
-    )
+    val userRepository = remember { UserRepository() }
+    val transactionRepository = remember { TransactionRepository() }
+    val categoryRepository = remember { CategoryRepository() }
+    val budgetRepository = remember { BudgetRepository() }
+    val sessionManager = remember { SessionManager(context.applicationContext) }
+    val viewModelFactory = remember { 
+        ViewModelFactory(
+            userRepository,
+            transactionRepository,
+            categoryRepository,
+            budgetRepository,
+            sessionManager
+        )
+    }
     val transactionViewModel: TransactionViewModel = viewModel(factory = viewModelFactory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
 
     val user by userViewModel?.currentUser?.collectAsState() ?: remember {
-        mutableStateOf(User(-1, "John Doe", ""))
+        mutableStateOf(User(id = "", username = "John Doe"))
     }
-    val userId = user?.id ?: -1
+    val userId = user?.id ?: ""
 
     var filterType by remember { mutableStateOf(TransactionFilterType.RECENTS) }
     var customStart by remember { mutableStateOf(getStartOfDay(Date())) }
@@ -111,12 +126,12 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
 
     val (queryStart, queryEnd) = when (filterType) {
         TransactionFilterType.RECENTS -> Pair(
-            Date(0),
-            Date(Long.MAX_VALUE)
+            Timestamp(0, 0),
+            Timestamp(253402300799, 999999999) // Max valid Timestamp (year 9999)
         ) // all for now, but will group by day
-        TransactionFilterType.MONTH -> Pair(thisMonthStart, thisMonthEnd)
-        TransactionFilterType.WEEK -> Pair(thisWeekStart, thisWeekEnd)
-        TransactionFilterType.CUSTOM -> Pair(customStart, customEnd)
+        TransactionFilterType.MONTH -> Pair(Timestamp(thisMonthStart), Timestamp(thisMonthEnd))
+        TransactionFilterType.WEEK -> Pair(Timestamp(thisWeekStart), Timestamp(thisWeekEnd))
+        TransactionFilterType.CUSTOM -> Pair(Timestamp(customStart), Timestamp(customEnd))
     }
 
     val allTransactions by transactionViewModel.getTransactionsByPeriod(
@@ -155,7 +170,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
         }
     }
     var expenseSum =
-        filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        filteredTransactions.filter { it.getTransactionType() == TransactionType.EXPENSE }.sumOf { it.amount }
     if (LocalInspectionMode.current)
         expenseSum = 99999.0
 
@@ -587,7 +602,7 @@ fun TransactionsScreen(navController: NavController, userViewModel: UserViewMode
                         userViewModel = userViewModel,
                         transactionToEdit = editTransaction,
                         onTransactionDeleted = { transaction ->
-                            transactionViewModel.deleteTransaction(transaction)
+                            transactionViewModel.deleteTransaction(userId, transaction)
                             showAddScreen = false
                         },
                         onClose = { showAddScreen = false },
@@ -699,9 +714,9 @@ fun groupTransactionsByDay(transactions: List<Transaction>): Map<String, List<Tr
     val yesterday = getStartOfDay(Date(today.time - 24 * 60 * 60 * 1000))
     val dateFormat = SimpleDateFormat("EEE, dd MMM", Locale.getDefault())
     return transactions
-        .sortedByDescending { it.date }
+        .sortedByDescending { it.getDateAsDate() }
         .groupBy { txn ->
-            val txnDay = getStartOfDay(txn.date)
+            val txnDay = getStartOfDay(txn.getDateAsDate())
             when (txnDay) {
                 today -> "Today"
                 yesterday -> "Yesterday"
@@ -730,69 +745,7 @@ fun getEndOfDay(date: Date): Date {
     return cal.time
 }
 
-@Composable
-fun ExpenseCircle(
-    totalSpent: Double,
-    categoryColor: Color? = null
-) {
-    Box(
-        modifier = Modifier.size(200.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth: Float = 12.dp.toPx()
-            val radius = (size.minDimension - strokeWidth) / 2
-            val center = center
-
-            if (categoryColor != null) {
-                drawCircle(
-                    color = categoryColor,
-                    radius = radius,
-                    center = center,
-                    style = Stroke(width = strokeWidth)
-                )
-            } else {
-                drawCircle(
-                    brush = Brush.sweepGradient(
-                        colors = listOf(
-                            Color(0xFFf4680b),
-                            Color(0xFFf4c047),
-                            Color(0xFFb42313),
-                            Color(0xFFf45d92),
-                            Color(0xFFf4680b)
-                        ),
-                        center = center
-                    ),
-                    radius = radius,
-                    center = center,
-                    style = Stroke(width = strokeWidth)
-                )
-            }
-        }
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "R${String.format("%.2f", totalSpent)}",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = SpaceMonoFont,
-                color = Color(0xFFFFFDF0)
-            )
-            Text(
-                text = "Expenses",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal,
-                    fontStyle = FontStyle.Italic
-                ),
-                color = Color(0xFFF4C047)
-            )
-        }
-
-    }
-}
+//expense circle moved
 
 @Composable
 fun TransactionCard(
@@ -853,7 +806,7 @@ fun TransactionCard(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = dateFormat.format(transaction.date),
+                        text = dateFormat.format(transaction.getDateAsDate()),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Normal,
                         fontFamily = SpaceMonoFont,
@@ -879,7 +832,7 @@ fun TransactionCard(
                 }
 
                 Text(
-                    text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}${
+                    text = "${if (transaction.getTransactionType() == TransactionType.INCOME) "+" else "-"}${
                         String.format(
                             "%.2f",
                             transaction.amount
@@ -888,7 +841,7 @@ fun TransactionCard(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     fontFamily = SpaceMonoFont,
-                    color = if (transaction.type == TransactionType.INCOME) Color(0xFF57c52b) else Color(
+                    color = if (transaction.getTransactionType() == TransactionType.INCOME) Color(0xFF57c52b) else Color(
                         0xFFb42313
                     )
                 )

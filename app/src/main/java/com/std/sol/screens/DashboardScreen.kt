@@ -2,8 +2,9 @@ package com.std.sol.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+//import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -27,44 +28,60 @@ import androidx.navigation.compose.rememberNavController
 import com.std.sol.Screen
 import com.std.sol.SessionManager
 import com.std.sol.components.BudgetComponent
-import com.std.sol.databases.DatabaseProvider
 import com.std.sol.entities.Category
 import com.std.sol.entities.User
+import com.std.sol.repositories.BudgetRepository
+import com.std.sol.repositories.CategoryRepository
+import com.std.sol.repositories.TransactionRepository
+import com.std.sol.repositories.UserRepository
 import com.std.sol.ui.theme.*
 import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
+import com.std.sol.components.RecentBudgetsWidget
+import androidx.compose.foundation.lazy.items
+import com.std.sol.components.DashboardWidgetType
+import com.std.sol.viewmodels.DashboardViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import com.std.sol.components.ExpenseSummaryWidget
+import com.std.sol.components.RecentTransactionWidget
+import com.std.sol.viewmodels.TransactionViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?) {
     val context = LocalContext.current
-    val db = remember { DatabaseProvider.getDatabase(context.applicationContext) }
+    val userRepository = remember { UserRepository() }
+    val transactionRepository = remember { TransactionRepository() }
+    val categoryRepository = remember { CategoryRepository() }
+    val budgetRepository = remember { BudgetRepository() }
     val sessionManager = remember { SessionManager(context.applicationContext) }
-    val factory = remember { ViewModelFactory(db, sessionManager) }
+    val factory = remember { 
+        ViewModelFactory(
+            userRepository,
+            transactionRepository,
+            categoryRepository,
+            budgetRepository,
+            sessionManager
+        )
+    }
     val budgetViewModel: BudgetViewModel = viewModel(factory = factory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = factory)
+    val transactionViewModel: TransactionViewModel = viewModel(factory = factory)
 
     val user: User? by userViewModel?.currentUser?.collectAsState() ?: remember {
-        mutableStateOf(User(id = -1, username = "John Doe", passwordHash = ""))
+        mutableStateOf(User(id = "", username = "John Doe"))
     }
-    val userId = user?.id ?: 0
+    val userId = user?.id ?: ""
 
-    val budgets by budgetViewModel.getAllBudgets(
-        userId = userId,
-        descending = true
-    ).collectAsState(initial = emptyList())
-
-    val categories by categoryViewModel.getAllCategories(userId)
-        .collectAsState(initial = emptyList())
-
-    val recentBudgets = remember(budgets) {
-        budgets.take(3)
-    }
+    val dashboardViewModel: DashboardViewModel = viewModel(factory = factory)
+    val widgets by dashboardViewModel.dashboardWidgets.collectAsState()
 
     var showBudgetSheet by remember { mutableStateOf(false) }
-    var editBudgetId by remember { mutableStateOf<Int?>(null) }
+    var editBudgetId by remember { mutableStateOf<String?>(null) }
+    var showCustomizeSheet by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -73,7 +90,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -83,9 +100,19 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                     fontWeight = FontWeight.Bold,
                     fontStyle = FontStyle.Italic
                 ),
-                color = Color(0xFFFFFDF0),
+                color = Ivory,
                 textAlign = TextAlign.Center
             )
+            
+            IconButton(onClick = {
+                showCustomizeSheet = true
+            }) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Customize Dashboard",
+                    tint = Amber
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -99,77 +126,42 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 )
             }
         } else {
-            if (recentBudgets.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Recent Budgets",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = SpaceMonoFont,
-                        color = Color(0xFFFFFDF0)
-                    )
-                    TextButton(
-                        onClick = { navController.navigate(Screen.Budgets.route) }
-                    ) {
-                        Text(
-                            text = "View All",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            color = Color(0xFFF4C047)
-                        )
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp) //adds space between widget
+            ) {
+                items(widgets) { widgetType ->
+                    //checks the list and builds the UI
+                    when (widgetType) {
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(recentBudgets) { budget ->
-                        val category = categories.find { it.id == budget.categoryId }
-                        BudgetItem(
-                            budget = budget,
-                            category = category,
-                            budgetDao = db.budgetDao(),
-                            onNavigate = {
-                                editBudgetId = budget.id
-                                showBudgetSheet = true
-                            }
-                        )
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "No budgets yet. Create one to get started!",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Ivory,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { navController.navigate("${Screen.AddEditBudget.route}/0") },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFf4c047),
-                                contentColor = Color(0xFF0c1327)
+                        DashboardWidgetType.RECENT_BUDGETS -> {
+                            RecentBudgetsWidget(
+                                navController = navController,
+                                budgetViewModel = budgetViewModel,
+                                categoryViewModel = categoryViewModel,
+                                userId = userId,
+                                onEditBudget = { budgetID ->
+                                    editBudgetId = budgetID
+                                    showBudgetSheet = true
+                                }
                             )
-                        ) {
-                            Text(
-                                "Create Budget",
-                                style = MaterialTheme.typography.labelLarge
+                        }
+                        //when adding new widgets, you'll add them here
+                        DashboardWidgetType.RECENT_TRANSACTIONS -> {
+                            RecentTransactionWidget(
+                                navController = navController,
+                                transactionViewModel = transactionViewModel,
+                                userId = userId
+                            )
+                        }
+
+                        DashboardWidgetType.CATEGORY_SUMMARY_CIRCLE -> {
+                            ExpenseSummaryWidget(
+                                transactionViewModel = transactionViewModel,
+                                budgetViewModel = budgetViewModel,
+                                categoryViewModel = categoryViewModel,
+                                userId = userId
                             )
                         }
                     }
@@ -178,7 +170,8 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
         }
     }
 
-    if (showBudgetSheet && editBudgetId != null && editBudgetId != 0) {
+    val currentBudgetId = editBudgetId
+    if (showBudgetSheet && currentBudgetId != null && currentBudgetId.isNotBlank()) {
         val sheetState = rememberModalBottomSheetState(
             skipPartiallyExpanded = false
         )
@@ -214,7 +207,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                     AddEditBudgetScreen(
                         navController = navController,
                         userId = userId,
-                        budgetId = editBudgetId ?: 0,
+                        budgetId = currentBudgetId,
                         onClose = {
                             showBudgetSheet = false
                             editBudgetId = null
@@ -227,6 +220,16 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 }
             }
         }
+    }
+
+    // Customize Dashboard Bottom Sheet
+    if (showCustomizeSheet && userViewModel != null) {
+        CustomizeDashboardScreen(
+            userViewModel = userViewModel,
+            onDismiss = {
+                showCustomizeSheet = false
+            }
+        )
     }
 }
 

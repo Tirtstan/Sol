@@ -25,9 +25,12 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.std.sol.SessionManager
 import com.std.sol.components.BudgetComponent
-import com.std.sol.databases.DatabaseProvider
 import com.std.sol.entities.Category
 import com.std.sol.entities.User
+import com.std.sol.repositories.BudgetRepository
+import com.std.sol.repositories.CategoryRepository
+import com.std.sol.repositories.TransactionRepository
+import com.std.sol.repositories.UserRepository
 import com.std.sol.ui.theme.*
 import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
@@ -38,16 +41,27 @@ import com.std.sol.viewmodels.ViewModelFactory
 @Composable
 fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
     val context = LocalContext.current
-    val db = remember { DatabaseProvider.getDatabase(context.applicationContext) }
+    val userRepository = remember { UserRepository() }
+    val transactionRepository = remember { TransactionRepository() }
+    val categoryRepository = remember { CategoryRepository() }
+    val budgetRepository = remember { BudgetRepository() }
     val sessionManager = remember { SessionManager(context.applicationContext) }
-    val factory = remember { ViewModelFactory(db, sessionManager) }
+    val factory = remember { 
+        ViewModelFactory(
+            userRepository,
+            transactionRepository,
+            categoryRepository,
+            budgetRepository,
+            sessionManager
+        )
+    }
     val budgetViewModel: BudgetViewModel = viewModel(factory = factory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = factory)
 
     val currentUser by
     userViewModel?.currentUser?.collectAsState()
-        ?: remember { mutableStateOf(User(-1, "John Doe", "")) }
-    val userId = currentUser?.id ?: 0
+        ?: remember { mutableStateOf(User(id = "", username = "John Doe")) }
+    val userId = currentUser?.id ?: ""
 
     val budgets by
     budgetViewModel
@@ -59,7 +73,7 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
 
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var showBudgetSheet by remember { mutableStateOf(false) }
-    var editBudgetId by remember { mutableStateOf<Int?>(null) }
+    var editBudgetId by remember { mutableStateOf<String?>(null) }
 
     val filteredBudgets =
         remember(budgets, selectedCategory) {
@@ -156,7 +170,8 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
                         BudgetItem(
                             budget = budget,
                             category = category,
-                            budgetDao = db.budgetDao(),
+                            budgetViewModel = budgetViewModel,
+                            userId = userId,
                             onNavigate = {
                                 editBudgetId = budget.id
                                 showBudgetSheet = true
@@ -204,7 +219,7 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
                     AddEditBudgetScreen(
                         navController = navController,
                         userId = userId,
-                        budgetId = editBudgetId ?: 0,
+                        budgetId = editBudgetId ?: "",
                         onClose = {
                             showBudgetSheet = false
                             editBudgetId = null
@@ -230,27 +245,21 @@ fun BudgetsScreenPreview() {
 fun BudgetItem(
     budget: com.std.sol.entities.Budget,
     category: Category?,
-    budgetDao: com.std.sol.daos.BudgetDao,
+    budgetViewModel: com.std.sol.viewmodels.BudgetViewModel,
+    userId: String,
     onNavigate: () -> Unit
 ) {
-    // Get the Flow for this specific budget's current amount
-    val currentAmountFlow =
-        remember(
-            budget.id,
-            budget.userId,
-            budget.categoryId,
-            budget.startDate,
-            budget.endDate
-        ) {
-            budgetDao.getCalculatedCurrentAmount(
-                userId = budget.userId,
-                categoryId = budget.categoryId,
-                start = budget.startDate,
-                end = budget.endDate
-            )
-        }
+    // Update current amount when budget changes
+    LaunchedEffect(budget.id, budget.categoryId, budget.startDate, budget.endDate) {
+        budgetViewModel.updateCurrentAmount(
+            userId = userId,
+            categoryId = budget.categoryId,
+            start = budget.startDate,
+            end = budget.endDate
+        )
+    }
 
-    val currentAmount by currentAmountFlow.collectAsState(initial = 0.0)
+    val currentAmount by budgetViewModel.currentAmount.collectAsState()
 
     BudgetComponent(
         budget = budget,

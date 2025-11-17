@@ -9,6 +9,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Edit
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Filled.Home)
@@ -23,6 +25,9 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 
     object AddEditBudget : Screen("add_edit_budget", "Budget Editor", Icons.Filled.Create)
     object AddTransactionScreen : Screen("add_transaction", "Add Transaction", Icons.Filled.Add)
+
+    object AddCategory : Screen("add_category", "Add Category", Icons.Filled.Category)
+    object CustomizeDashboard : Screen("customize_dashboard", "Customize", Icons.Filled.Edit)
 }
 
 

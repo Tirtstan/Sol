@@ -16,6 +16,11 @@
 -   **Visual Graphs** – Display daily spending trends with easy-to-read graphs.
 -   **Progress Dashboard** – Monitor how well you’re staying within your monthly goals, with visual indicators for overspending.
 
+### Custom Features
+
+-   **Customisable Dashboard** – Personalise widgets and layouts to highlight the insights you care about most.
+-   **Preset Expenses** – Quickly add frequent costs using reusable templates, generated through recent usage.
+
 ---
 
 ## 🛠️ Built With
@@ -30,3 +35,7 @@
 1. Install Android Studio
 2. Clone this repository
 3. Build project and run on an emulator or physical device
+
+## 🎥 Presentation Video
+
+Link to presentation video: [Presentation Video](https://youtu.be/dQw4w9WgXcQ)

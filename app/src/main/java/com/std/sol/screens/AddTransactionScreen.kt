@@ -38,16 +38,20 @@ import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
 import com.std.sol.components.CategoryDropdown
 import com.std.sol.components.CombinedPresetsDropdown
-import com.std.sol.databases.DatabaseProvider
 import com.std.sol.entities.Category
 import com.std.sol.entities.Transaction
 import com.std.sol.entities.TransactionType
 import com.std.sol.entities.User
+import com.std.sol.repositories.BudgetRepository
+import com.std.sol.repositories.CategoryRepository
+import com.std.sol.repositories.TransactionRepository
+import com.std.sol.repositories.UserRepository
 import com.std.sol.ui.theme.*
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.TransactionViewModel
 import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
+import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.Modifier
@@ -65,28 +69,38 @@ fun AddTransactionScreen(
     onClose: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
-    val viewModelFactory = ViewModelFactory(
-        DatabaseProvider.getDatabase(context),
-        SessionManager(context)
-    )
+    val userRepository = remember { UserRepository() }
+    val transactionRepository = remember { TransactionRepository() }
+    val categoryRepository = remember { CategoryRepository() }
+    val budgetRepository = remember { BudgetRepository() }
+    val sessionManager = remember { SessionManager(context.applicationContext) }
+    val viewModelFactory = remember { 
+        ViewModelFactory(
+            userRepository,
+            transactionRepository,
+            categoryRepository,
+            budgetRepository,
+            sessionManager
+        )
+    }
     val transactionViewModel: TransactionViewModel = viewModel(factory = viewModelFactory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = viewModelFactory)
 
     val user: User? by userViewModel?.currentUser?.collectAsState() ?: remember {
-        mutableStateOf(User(id = -1, username = "John Doe", passwordHash = ""))
+        mutableStateOf(User(id = "", username = "John Doe"))
     }
-    val userId = user?.id ?: return
+    val userId = user?.id ?: ""
 
     var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var transactionName by remember { mutableStateOf(transactionToEdit?.name ?: "") }
     var selectedType by remember {
         mutableStateOf(
-            transactionToEdit?.type ?: TransactionType.EXPENSE
+            transactionToEdit?.getTransactionType() ?: TransactionType.EXPENSE
         )
     }
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
-    var selectedDate by remember { mutableStateOf(transactionToEdit?.date ?: Date()) }
+    var selectedDate by remember { mutableStateOf(transactionToEdit?.getDateAsDate() ?: Date()) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf(transactionToEdit?.imagePath?.toUri()) }
@@ -459,20 +473,20 @@ fun AddTransactionScreen(
                     onClick = {
                         if (amount.isNotBlank() && transactionName.isNotBlank() && selectedCategory != null) {
                             val transaction = Transaction(
-                                id = transactionToEdit?.id ?: 0,
+                                id = transactionToEdit?.id ?: "",
                                 userId = userId,
                                 categoryId = selectedCategory!!.id,
                                 name = transactionName,
                                 amount = amount.toDoubleOrNull() ?: 0.0,
-                                date = selectedDate,
+                                date = Timestamp(selectedDate),
                                 note = note.ifBlank { null },
-                                type = selectedType,
+                                type = selectedType.name,
                                 imagePath = imageUri?.toString()
                             )
                             if (transactionToEdit == null) {
-                                transactionViewModel.addTransaction(transaction)
+                                transactionViewModel.addTransaction(userId, transaction)
                             } else {
-                                transactionViewModel.updateTransaction(transaction)
+                                transactionViewModel.updateTransaction(userId, transaction)
                             }
                             if (onClose != null) onClose()
                             else navController.navigateUp()

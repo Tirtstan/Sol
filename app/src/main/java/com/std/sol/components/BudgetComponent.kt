@@ -16,7 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import com.std.sol.entities.Budget
 import com.std.sol.entities.Category
 import com.std.sol.screens.getCategoryColor
@@ -30,6 +30,7 @@ import com.std.sol.ui.theme.Ocean
 import com.std.sol.ui.theme.Sky
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.ui.theme.SpaceMonoFont
+import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -99,9 +100,10 @@ fun BudgetComponent(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    if (!budget.description.isNullOrBlank()) {
+                    val descriptionText = budget.description
+                    if (!descriptionText.isNullOrBlank()) {
                         Text(
-                            text = budget.description,
+                            text = descriptionText,
                             color = Ivory.copy(alpha = 0.9f),
                             fontSize = 13.sp,
                             fontFamily = InterFont,
@@ -127,7 +129,7 @@ fun BudgetComponent(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Text(
-                                    text = dateFormat.format(budget.startDate),
+                                    text = dateFormat.format(budget.startDate.toDate()),
                                     color = Sky.copy(alpha = 0.95f),
                                     fontSize = 11.sp,
                                     fontFamily = InterFont,
@@ -138,7 +140,7 @@ fun BudgetComponent(
 
                         // Arrow icon
                         Icon(
-                            imageVector = Icons.Default.ArrowForward,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             tint = Ivory.copy(alpha = 0.6f),
                             modifier = Modifier.size(16.dp)
@@ -157,7 +159,7 @@ fun BudgetComponent(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Text(
-                                    text = dateFormat.format(budget.endDate),
+                                    text = dateFormat.format(budget.endDate.toDate()),
                                     color = Mist.copy(alpha = 0.95f),
                                     fontSize = 11.sp,
                                     fontFamily = InterFont,
@@ -215,15 +217,15 @@ fun BudgetComponentPreview_UnderBudget() {
         BudgetComponent(
             budget =
                 Budget(
-                    id = 1,
-                    userId = 1,
-                    categoryId = 1,
+                    id = "1",
+                    userId = "1",
+                    categoryId = "1",
                     name = "Groceries",
                     description = "Monthly food budget",
                     minGoalAmount = 300.0,
                     maxGoalAmount = 400.0,
-                    startDate = Date(),
-                    endDate = Date()
+                    startDate = Timestamp.now(),
+                    endDate = Timestamp.now()
                 ),
             category = null,
             currentAmount = 250.0
@@ -238,15 +240,15 @@ fun BudgetComponentPreview_OverBudget() {
         BudgetComponent(
             budget =
                 Budget(
-                    id = 2,
-                    userId = 1,
-                    categoryId = 2,
+                    id = "2",
+                    userId = "1",
+                    categoryId = "2",
                     name = "Dining Out",
                     description = "Weekend restaurant spending",
                     minGoalAmount = 300.0,
                     maxGoalAmount = 400.0,
-                    startDate = Date(),
-                    endDate = Date()
+                    startDate = Timestamp.now(),
+                    endDate = Timestamp.now()
                 ),
             category = null,
             currentAmount = 450.0

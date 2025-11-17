@@ -25,14 +25,18 @@ import com.std.sol.SessionManager
 import com.std.sol.components.SpaceButton
 import com.std.sol.components.SpaceTextField
 import com.std.sol.components.CategoryDropdown
-import com.std.sol.databases.DatabaseProvider
 import com.std.sol.entities.Budget
+import com.std.sol.repositories.BudgetRepository
+import com.std.sol.repositories.CategoryRepository
+import com.std.sol.repositories.TransactionRepository
+import com.std.sol.repositories.UserRepository
 import com.std.sol.ui.theme.Ivory
 import com.std.sol.ui.theme.SolTheme
 import com.std.sol.ui.theme.SpaceMonoFont
 import com.std.sol.viewmodels.BudgetViewModel
 import com.std.sol.viewmodels.CategoryViewModel
 import com.std.sol.viewmodels.ViewModelFactory
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -42,30 +46,41 @@ import java.util.Locale
 @Composable
 fun AddEditBudgetScreen(
     navController: NavController,
-    userId: Int,
-    budgetId: Int,
+    userId: String,
+    budgetId: String,
     onClose: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val db = remember { DatabaseProvider.getDatabase(context.applicationContext) }
+    val userRepository = remember { UserRepository() }
+    val transactionRepository = remember { TransactionRepository() }
+    val categoryRepository = remember { CategoryRepository() }
+    val budgetRepository = remember { BudgetRepository() }
     val sessionManager = remember { SessionManager(context.applicationContext) }
-    val factory = remember { ViewModelFactory(db, sessionManager) }
+    val factory = remember { 
+        ViewModelFactory(
+            userRepository,
+            transactionRepository,
+            categoryRepository,
+            budgetRepository,
+            sessionManager
+        )
+    }
 
     val budgetViewModel: BudgetViewModel = viewModel(factory = factory)
     val categoryViewModel: CategoryViewModel = viewModel(factory = factory)
 
-    val isEditing = budgetId != 0
+    val isEditing = budgetId.isNotBlank()
 
     var name by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var minGoal by rememberSaveable { mutableStateOf("") }
     var maxGoal by rememberSaveable { mutableStateOf("") }
-    var startDate by rememberSaveable { mutableStateOf(Date()) }
-    var endDate by rememberSaveable { mutableStateOf(Date()) }
+    var startDate by rememberSaveable { mutableStateOf(Timestamp.now()) }
+    var endDate by rememberSaveable { mutableStateOf(Timestamp.now()) }
 
-    var selectedCategoryId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var selectedCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
 
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -79,8 +94,8 @@ fun AddEditBudgetScreen(
     }
 
     LaunchedEffect(budgetId, userId) {
-        if (isEditing) {
-            val existing = budgetViewModel.getBudgetById(budgetId)
+        if (isEditing && userId.isNotBlank() && budgetId.isNotBlank()) {
+            val existing = budgetViewModel.getBudgetById(userId, budgetId)
             existing?.let { b ->
                 name = b.name
                 description = b.description ?: ""
@@ -206,7 +221,7 @@ fun AddEditBudgetScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        "Start: ${dateFormat.format(startDate)}",
+                        "Start: ${dateFormat.format(startDate.toDate())}",
                         color = Ivory,
                         fontFamily = SpaceMonoFont,
                         textAlign = TextAlign.Center
@@ -219,7 +234,7 @@ fun AddEditBudgetScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        "End: ${dateFormat.format(endDate)}", color = Ivory,
+                        "End: ${dateFormat.format(endDate.toDate())}", color = Ivory,
                         fontFamily = SpaceMonoFont,
                         textAlign = TextAlign.Center
                     )
@@ -227,13 +242,13 @@ fun AddEditBudgetScreen(
             }
 
             if (showStartPicker) {
-                val state = rememberDatePickerState(initialSelectedDateMillis = startDate.time)
+                val state = rememberDatePickerState(initialSelectedDateMillis = startDate.toDate().time)
                 DatePickerDialog(
                     onDismissRequest = { showStartPicker = false },
                     confirmButton = {
                         TextButton(onClick = {
                             state.selectedDateMillis?.let {
-                                startDate = Date(it)
+                                startDate = Timestamp(Date(it))
                             }
                             showStartPicker = false
                         }) { Text("OK") }
@@ -244,13 +259,13 @@ fun AddEditBudgetScreen(
                 ) { DatePicker(state = state) }
             }
             if (showEndPicker) {
-                val state = rememberDatePickerState(initialSelectedDateMillis = endDate.time)
+                val state = rememberDatePickerState(initialSelectedDateMillis = endDate.toDate().time)
                 DatePickerDialog(
                     onDismissRequest = { showEndPicker = false },
                     confirmButton = {
                         TextButton(onClick = {
                             state.selectedDateMillis?.let {
-                                endDate = Date(it)
+                                endDate = Timestamp(Date(it))
                             }
                             showEndPicker = false
                         }) { Text("OK") }
@@ -272,8 +287,10 @@ fun AddEditBudgetScreen(
                         text = "DELETE",
                         onClick = {
                             scope.launch {
-                                budgetViewModel.getBudgetById(budgetId)
-                                    ?.let { budgetViewModel.deleteBudget(it) }
+                                if (userId.isNotBlank() && budgetId.isNotBlank()) {
+                                    budgetViewModel.getBudgetById(userId, budgetId)
+                                        ?.let { budgetViewModel.deleteBudget(userId, it) }
+                                }
                                 onClose?.invoke() ?: navController.popBackStack()
                             }
                         },
@@ -287,23 +304,23 @@ fun AddEditBudgetScreen(
                     text = if (isEditing) "UPDATE" else "SAVE",
                     onClick = {
                         if (!formValid) return@SpaceButton
-                        scope.launch {
-                            val budget = Budget(
-                                id = if (isEditing) budgetId else 0,
-                                userId = userId,
-                                categoryId = selectedCategoryId ?: 0,
-                                name = name,
-                                description = description.ifBlank { null },
-                                minGoalAmount = minGoal.toDoubleOrNull() ?: 0.0,
-                                maxGoalAmount = maxGoal.toDoubleOrNull() ?: 0.0,
-                                startDate = startDate,
-                                endDate = endDate
-                            )
-                            if (isEditing) budgetViewModel.updateBudget(budget) else budgetViewModel.addBudget(
-                                budget
-                            )
-                            onClose?.invoke() ?: navController.popBackStack()
+                        val budget = Budget(
+                            id = if (isEditing) budgetId else "",
+                            userId = userId,
+                            categoryId = selectedCategoryId ?: "",
+                            name = name,
+                            description = description.ifBlank { null },
+                            minGoalAmount = minGoal.toDoubleOrNull() ?: 0.0,
+                            maxGoalAmount = maxGoal.toDoubleOrNull() ?: 0.0,
+                            startDate = startDate,
+                            endDate = endDate
+                        )
+                        if (isEditing) {
+                            budgetViewModel.updateBudget(userId, budget)
+                        } else {
+                            budgetViewModel.addBudget(userId, budget)
                         }
+                        onClose?.invoke() ?: navController.popBackStack()
                     },
                     enabled = formValid,
                     modifier = Modifier.weight(1f)
@@ -317,5 +334,5 @@ fun AddEditBudgetScreen(
 @Preview(showBackground = true, backgroundColor = 0xFF0C1327)
 @Composable
 fun AddEditBudgetScreenModalPreview() {
-    SolTheme { AddEditBudgetScreen(rememberNavController(), 0, 0) }
+    SolTheme { AddEditBudgetScreen(rememberNavController(), "", "") }
 }

@@ -1,13 +1,16 @@
 package com.std.sol
 
+
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.std.sol.components.DashboardWidgetType
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
@@ -16,15 +19,21 @@ class SessionManager(context: Context) {
     private val appContext = context.applicationContext
 
     companion object {
-        private val USER_ID_KEY = intPreferencesKey("user_id")
+        private val USER_ID_KEY = stringPreferencesKey("user_id")
     }
 
-    val userIdFlow: Flow<Int?> = appContext.dataStore.data
+    val userIdFlow: Flow<String?> = appContext.dataStore.data
         .map { preferences ->
-            preferences[USER_ID_KEY]
+            val rawValue = preferences.asMap()[USER_ID_KEY]
+            when (rawValue) {
+                is String -> rawValue
+                is Int -> rawValue.toString()
+                is Long -> rawValue.toString()
+                else -> null
+            }
         }
 
-    suspend fun saveUserId(userId: Int) {
+    suspend fun saveUserId(userId: String) {
         appContext.dataStore.edit { preferences ->
             preferences[USER_ID_KEY] = userId
         }
@@ -33,6 +42,44 @@ class SessionManager(context: Context) {
     suspend fun clearSession() {
         appContext.dataStore.edit { preferences ->
             preferences.remove(USER_ID_KEY)
+        }
+    }
+
+    //private helper to create a unique key for each user's dashboard
+    private fun dashboardWidgetsKey(userId: String) =
+        stringPreferencesKey("dashboard_widgets_user_${userId}")
+
+    //Flow to READ user's saved widget list
+    //automatically update when settings are changed
+    fun getDashboardWidgets(userId: String): Flow<List<DashboardWidgetType>> {
+        return appContext.dataStore.data.map { preferences ->
+            //get saved string
+            //if nothing is saved, return empty list (will default to all widgets in ViewModel)
+            val savedString = preferences[dashboardWidgetsKey(userId)]
+            
+            if (savedString == null || savedString.isBlank()) {
+                emptyList()
+            } else {
+                //convert the string back to a list
+                savedString.split(",")
+                    .mapNotNull { widgetName ->
+                        try {
+                            //find the enum value for each name
+                            DashboardWidgetType.valueOf(widgetName.trim())
+                        } catch (e: Exception) {
+                            //in case of a saved value that no longer exists
+                            null
+                        }
+                    }
+            }
+        }
+    }
+
+    suspend fun saveDashboardWidget(userId: String, widgets: List<DashboardWidgetType>) {
+        appContext.dataStore.edit { preferences ->
+
+            val widgetString = widgets.joinToString(",") { it.name }
+            preferences[dashboardWidgetsKey(userId)] = widgetString
         }
     }
 }
