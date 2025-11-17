@@ -28,6 +28,7 @@ class CustomizeDashboardViewModel(
             // If no widgets are saved, enable all widgets by default
             if (savedList.isEmpty()) {
                 enabledWidgets.addAll(allWidgets)
+                sessionManager.saveDashboardWidget(userId, allWidgets)
             } else {
                 enabledWidgets.addAll(savedList)
             }
@@ -37,8 +38,11 @@ class CustomizeDashboardViewModel(
     //saves the current state of the list back to DataStore
     fun saveSettings(userId: String) {
         viewModelScope.launch {
-            //save the current contents of the modifiable list
-            sessionManager.saveDashboardWidget(userId, enabledWidgets.toList())
+            // Prevent saving empty list - if empty, don't save (keep previous state)
+            // This prevents the issue where toggling the last widget resets everything
+            if (enabledWidgets.isNotEmpty()) {
+                sessionManager.saveDashboardWidget(userId, enabledWidgets.toList())
+            }
         }
     }
 }

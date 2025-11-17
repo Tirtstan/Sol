@@ -246,9 +246,12 @@ fun AddTransactionScreen(
                 CombinedPresetsDropdown(
                     recentTransactions = recentTransactions,
                     categories = categories,
-                    onPresetSelected = { presetName, matchingCategory ->
+                    onPresetSelected = { presetName, matchingCategory, presetAmount ->
                         transactionName = presetName
                         selectedType = TransactionType.EXPENSE
+                        if (presetAmount > 0.0) {
+                            amount = "%.2f".format(presetAmount)
+                        }
                         if (matchingCategory != null) {
                             selectedCategory = matchingCategory
                         }

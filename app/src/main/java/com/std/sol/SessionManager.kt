@@ -9,7 +9,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import androidx.datastore.preferences.core.stringPreferencesKey
 import com.std.sol.components.DashboardWidgetType
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
@@ -53,21 +52,15 @@ class SessionManager(context: Context) {
     //automatically update when settings are changed
     fun getDashboardWidgets(userId: String): Flow<List<DashboardWidgetType>> {
         return appContext.dataStore.data.map { preferences ->
-            //get saved string
-            //if nothing is saved, return empty list (will default to all widgets in ViewModel)
             val savedString = preferences[dashboardWidgetsKey(userId)]
-            
-            if (savedString == null || savedString.isBlank()) {
-                emptyList()
+            if (savedString.isNullOrBlank()) {
+                DashboardWidgetType.entries.toList()
             } else {
-                //convert the string back to a list
                 savedString.split(",")
                     .mapNotNull { widgetName ->
                         try {
-                            //find the enum value for each name
                             DashboardWidgetType.valueOf(widgetName.trim())
                         } catch (e: Exception) {
-                            //in case of a saved value that no longer exists
                             null
                         }
                     }

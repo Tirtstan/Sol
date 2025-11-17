@@ -86,9 +86,9 @@ fun MoreScreen(navController: NavController, userViewModel: UserViewModel?) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-
+            Spacer(modifier = Modifier.weight(0.3f))
 
             if (user != null) {
                 Icon(
@@ -98,39 +98,54 @@ fun MoreScreen(navController: NavController, userViewModel: UserViewModel?) {
                     tint = Ivory
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
                     text = user!!.username,
                     fontSize = 28.sp,
-                    fontWeight = FontWeight.Normal,
+                    fontWeight = FontWeight.Bold,
                     fontFamily = SpaceMonoFont,
                     color = Ivory
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Manage your account settings",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    fontFamily = SpaceMonoFont,
+                    color = Ivory.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.weight(0.2f))
 
                 SpaceButton(
                     text = "Change Username",
                     onClick = { showChangeUsernameDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
                     gradientColors = listOf(Indigo, RoyalBright),
                     shadowColor = RoyalBright,
                     borderColor = RoyalBright.copy(alpha = 0.5f)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 SpaceButton(
                     text = "Change Password",
                     onClick = { showChangePasswordDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
                     gradientColors = listOf(Indigo, RoyalBright),
                     shadowColor = RoyalBright,
                     borderColor = RoyalBright.copy(alpha = 0.5f)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 SpaceButton(
                     text = "Logout",
@@ -142,16 +157,22 @@ fun MoreScreen(navController: NavController, userViewModel: UserViewModel?) {
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
                     gradientColors = listOf(Rose, Ember),
                     shadowColor = Rose,
                     borderColor = Ember
                 )
             } else {
                 Text(
-                    "Not logged in", style = MaterialTheme.typography.bodyLarge, color = Ivory
+                    "Not logged in", 
+                    style = MaterialTheme.typography.bodyLarge, 
+                    color = Ivory
                 )
             }
+
+            Spacer(modifier = Modifier.weight(0.3f))
         }
 
         if (showChangeUsernameDialog) {

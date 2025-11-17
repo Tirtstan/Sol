@@ -122,7 +122,7 @@ fun RecentBudgetsWidget(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
-                        onClick = { navController.navigate("${Screen.AddEditBudget.route}/0") },
+                        onClick = { navController.navigate("${Screen.AddEditBudget.route}/") },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFf4c047),
                             contentColor = Color(0xFF0c1327)
@@ -150,6 +150,7 @@ fun BudgetItemWidget(
     // Update current amount when budget changes
     LaunchedEffect(budget.id, budget.categoryId, budget.startDate, budget.endDate) {
         budgetViewModel.updateCurrentAmount(
+            budgetId = budget.id,
             userId = userId,
             categoryId = budget.categoryId,
             start = budget.startDate,
@@ -157,7 +158,9 @@ fun BudgetItemWidget(
         )
     }
 
-    val currentAmount by budgetViewModel.currentAmount.collectAsState()
+    // Get current amount for this specific budget from the map
+    val currentAmounts by budgetViewModel.currentAmounts.collectAsState()
+    val currentAmount = currentAmounts[budget.id] ?: 0.0
 
     BudgetComponent(
         budget = budget,
@@ -247,7 +250,7 @@ fun TransactionItemWidget(transaction: com.std.sol.entities.Transaction) {
         val transactionTypeString = transaction.type
         val isExpense = transactionTypeString == com.std.sol.entities.TransactionType.EXPENSE.name
         Text(
-            text = "€${"%.2f".format(transaction.amount)}",
+            text = "R${"%.2f".format(transaction.amount)}",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = if (isExpense) Color.Red else Color.Green
@@ -650,8 +653,9 @@ fun CategorySpendingChart(
                 val canvasWidth = size.width
                 val canvasHeight = size.height
                 val padding = 40.dp.toPx()
+                val bottomPadding = 60.dp.toPx() // Extra padding for category labels
                 val chartWidth = canvasWidth - padding * 2
-                val chartHeightPx = canvasHeight - padding * 2
+                val chartHeightPx = canvasHeight - padding - bottomPadding
                 
                 // Draw grid lines
                 val gridLines = 5
@@ -665,14 +669,17 @@ fun CategorySpendingChart(
                     )
                 }
                 
+                // Adjust bar drawing to account for bottom padding
+                val adjustedChartHeightPx = chartHeightPx
+                
                 // Draw bars and goal lines
                 val totalBarWidth = barWidth.toPx() + barSpacing.toPx()
                 val startX = (padding + (chartWidth - totalBarWidth * categorySpending.size) / 2)
                 
                 categorySpending.forEachIndexed { index, (category, spent) ->
                     val x = (startX + index * totalBarWidth)
-                    val barHeight = ((spent / maxSpending) * chartHeightPx).toFloat()
-                    val barTop = (padding + chartHeightPx - barHeight)
+                    val barHeight = ((spent / maxSpending) * adjustedChartHeightPx).toFloat()
+                    val barTop = (padding + adjustedChartHeightPx - barHeight)
                     
                     // Get category color - parse color string safely
                     val categoryColor = if (category.color.isNotEmpty()) {
@@ -698,11 +705,11 @@ fun CategorySpendingChart(
                     
                     // Draw min/max goal lines if budget exists
                     if (budget != null) {
-                        val minHeight = ((budget.minGoalAmount / maxSpending) * chartHeightPx).toFloat()
-                        val maxHeight = ((budget.maxGoalAmount / maxSpending) * chartHeightPx).toFloat()
+                        val minHeight = ((budget.minGoalAmount / maxSpending) * adjustedChartHeightPx).toFloat()
+                        val maxHeight = ((budget.maxGoalAmount / maxSpending) * adjustedChartHeightPx).toFloat()
                         
-                        val minY = (padding + chartHeightPx - minHeight).toFloat()
-                        val maxY = (padding + chartHeightPx - maxHeight).toFloat()
+                        val minY = (padding + adjustedChartHeightPx - minHeight).toFloat()
+                        val maxY = (padding + adjustedChartHeightPx - maxHeight).toFloat()
                         
                         // Draw min goal line (green)
                         drawLine(
@@ -755,29 +762,37 @@ fun CategorySpendingChart(
             }
         }
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         
-        // Category labels
+        // Category labels with better spacing
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             categorySpending.forEach { (category, spent) ->
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 2.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = category.name.take(8),
+                        text = category.name.take(10),
                         fontSize = 10.sp,
                         color = Ivory.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 12.sp
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "€${"%.0f".format(spent)}",
+                        text = "R${"%.0f".format(spent)}",
                         fontSize = 9.sp,
-                        color = Ivory.copy(alpha = 0.5f)
+                        color = Ivory.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center
                     )
                 }
             }

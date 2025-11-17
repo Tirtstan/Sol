@@ -1,6 +1,7 @@
 package com.std.sol.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -28,6 +29,11 @@ fun CategoryDropdown(
     placeholder: String = "Select Category"
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val isDarkTheme = isSystemInDarkTheme()
+    val valueTextColor = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
+    val placeholderColor =
+        if (isDarkTheme) Ivory.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    val displayTextColor = if (selectedCategory == null) placeholderColor else valueTextColor
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -41,7 +47,10 @@ fun CategoryDropdown(
             label = {
                 Text(
                     text = label,
-                    style = TextStyle(fontFamily = SpaceMonoFont, color = Ivory)
+                    style = TextStyle(
+                        fontFamily = SpaceMonoFont,
+                        color = if (isSystemInDarkTheme()) Ivory else MaterialTheme.colorScheme.onSurface
+                    )
                 )
             },
             trailingIcon = {
@@ -50,20 +59,26 @@ fun CategoryDropdown(
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(),
-            textStyle = TextStyle(fontFamily = InterFont, color = Color.White),
+            textStyle = TextStyle(
+                fontFamily = InterFont,
+                color = displayTextColor
+            ),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFF56a1bf),
-                unfocusedBorderColor = Color(0xFFFFFDF0),
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                unfocusedBorderColor = if (isDarkTheme) Color(0xFFFFFDF0) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                focusedTextColor = displayTextColor,
+                unfocusedTextColor = displayTextColor,
                 cursorColor = Color(0xFF56a1bf),
-                focusedLabelColor = Color(0xFFFFFDF0),
-                unfocusedLabelColor = Color(0xFFFFFDF0)
+                focusedLabelColor = if (isDarkTheme) Color(0xFFFFFDF0) else MaterialTheme.colorScheme.onSurface,
+                unfocusedLabelColor = if (isDarkTheme) Color(0xFFFFFDF0) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         )
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(
+                if (isDarkTheme) Color(0xFF1a2a3a) else MaterialTheme.colorScheme.surface
+            )
         ) {
             categories.forEach { category ->
                 DropdownMenuItem(
@@ -90,7 +105,7 @@ fun CategoryDropdown(
                                 category.name,
                                 style = TextStyle(
                                     fontFamily = InterFont,
-                                    color = Color.White
+                                    color = if (isDarkTheme) Color(0xFFFFFDF0) else MaterialTheme.colorScheme.onSurface
                                 )
                             )
                         }

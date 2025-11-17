@@ -46,7 +46,7 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
     val categoryRepository = remember { CategoryRepository() }
     val budgetRepository = remember { BudgetRepository() }
     val sessionManager = remember { SessionManager(context.applicationContext) }
-    val factory = remember { 
+    val factory = remember {
         ViewModelFactory(
             userRepository,
             transactionRepository,
@@ -80,7 +80,7 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
             budgets.filter {
                 selectedCategory == null || it.categoryId == selectedCategory!!.id
             }
-    }
+        }
 
     Scaffold(
         containerColor = Color.Transparent
@@ -187,9 +187,9 @@ fun BudgetsScreen(navController: NavController, userViewModel: UserViewModel?) {
         val sheetState = rememberModalBottomSheetState(
             skipPartiallyExpanded = false
         )
-        
+
         ModalBottomSheet(
-            onDismissRequest = { 
+            onDismissRequest = {
                 showBudgetSheet = false
                 editBudgetId = null
             },
@@ -245,13 +245,14 @@ fun BudgetsScreenPreview() {
 fun BudgetItem(
     budget: com.std.sol.entities.Budget,
     category: Category?,
-    budgetViewModel: com.std.sol.viewmodels.BudgetViewModel,
+    budgetViewModel: BudgetViewModel,
     userId: String,
     onNavigate: () -> Unit
 ) {
     // Update current amount when budget changes
     LaunchedEffect(budget.id, budget.categoryId, budget.startDate, budget.endDate) {
         budgetViewModel.updateCurrentAmount(
+            budgetId = budget.id,
             userId = userId,
             categoryId = budget.categoryId,
             start = budget.startDate,
@@ -259,7 +260,9 @@ fun BudgetItem(
         )
     }
 
-    val currentAmount by budgetViewModel.currentAmount.collectAsState()
+    // Get current amount for this specific budget from the map
+    val currentAmounts by budgetViewModel.currentAmounts.collectAsState()
+    val currentAmount = currentAmounts[budget.id] ?: 0.0
 
     BudgetComponent(
         budget = budget,

@@ -29,7 +29,7 @@ import java.util.*
 fun CombinedPresetsDropdown(
     recentTransactions: List<Transaction>,
     categories: List<Category>,
-    onPresetSelected: (name: String, category: Category?) -> Unit,
+    onPresetSelected: (name: String, category: Category?, amount: Double) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -109,7 +109,7 @@ fun CombinedPresetsDropdown(
                                     val matchingCategory = categories.find {
                                         it.id == transaction.categoryId
                                     }
-                                    onPresetSelected(transaction.name, matchingCategory)
+                                    onPresetSelected(transaction.name, matchingCategory, transaction.amount)
                                     expanded = false
                                 }
                             )
@@ -145,7 +145,7 @@ fun CombinedPresetsDropdown(
                                 val matchingCategory = categories.find {
                                     it.name.equals(preset.category, ignoreCase = true)
                                 }
-                                onPresetSelected(preset.name, matchingCategory)
+                                onPresetSelected(preset.name, matchingCategory, preset.suggestedAmount)
                                 expanded = false
                             }
                         )

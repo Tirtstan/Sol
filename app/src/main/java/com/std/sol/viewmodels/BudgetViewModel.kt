@@ -13,8 +13,9 @@ import kotlinx.coroutines.launch
 import java.util.Date
 
 class BudgetViewModel(private val budgetRepository: BudgetRepository) : ViewModel() {
-    private val _currentAmount = MutableStateFlow(0.0)
-    val currentAmount: StateFlow<Double> = _currentAmount.asStateFlow()
+    // Map of budget ID to current amount - allows tracking multiple budgets independently
+    private val _currentAmounts = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val currentAmounts: StateFlow<Map<String, Double>> = _currentAmounts.asStateFlow()
 
     fun getAllBudgets(userId: String, descending: Boolean = true): Flow<List<Budget>> {
         return budgetRepository.getAllBudgets(userId, descending)
@@ -24,10 +25,10 @@ class BudgetViewModel(private val budgetRepository: BudgetRepository) : ViewMode
         return budgetRepository.getBudgetById(userId, id)
     }
 
-    fun updateCurrentAmount(userId: String, categoryId: String, start: Timestamp, end: Timestamp) {
+    fun updateCurrentAmount(budgetId: String, userId: String, categoryId: String, start: Timestamp, end: Timestamp) {
         viewModelScope.launch {
             val amount = budgetRepository.getCalculatedCurrentAmount(userId, categoryId, start, end)
-            _currentAmount.value = amount
+            _currentAmounts.value = _currentAmounts.value + (budgetId to amount)
         }
     }
 
