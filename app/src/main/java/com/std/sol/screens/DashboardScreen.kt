@@ -81,6 +81,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
 
     var showBudgetSheet by remember { mutableStateOf(false) }
     var editBudgetId by remember { mutableStateOf<String?>(null) }
+    var showCustomizeSheet by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -89,7 +90,7 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -99,9 +100,19 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                     fontWeight = FontWeight.Bold,
                     fontStyle = FontStyle.Italic
                 ),
-                color = Color(0xFFFFFDF0),
+                color = Ivory,
                 textAlign = TextAlign.Center
             )
+            
+            IconButton(onClick = {
+                showCustomizeSheet = true
+            }) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Customize Dashboard",
+                    tint = Amber
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -115,21 +126,6 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 )
             }
         } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                IconButton(onClick = {
-                    //navigate to the new screen
-                    navController.navigate(Screen.CustomizeDashboard.route)
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Customize Dashboard",
-                        tint = Color(0xFFF4C047)
-                    )
-                }
-            }
 
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -163,6 +159,8 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                         DashboardWidgetType.CATEGORY_SUMMARY_CIRCLE -> {
                             ExpenseSummaryWidget(
                                 transactionViewModel = transactionViewModel,
+                                budgetViewModel = budgetViewModel,
+                                categoryViewModel = categoryViewModel,
                                 userId = userId
                             )
                         }
@@ -222,6 +220,16 @@ fun DashboardScreen(navController: NavController, userViewModel: UserViewModel?)
                 }
             }
         }
+    }
+
+    // Customize Dashboard Bottom Sheet
+    if (showCustomizeSheet && userViewModel != null) {
+        CustomizeDashboardScreen(
+            userViewModel = userViewModel,
+            onDismiss = {
+                showCustomizeSheet = false
+            }
+        )
     }
 }
 

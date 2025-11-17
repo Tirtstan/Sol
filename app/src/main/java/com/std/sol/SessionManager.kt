@@ -54,21 +54,24 @@ class SessionManager(context: Context) {
     fun getDashboardWidgets(userId: String): Flow<List<DashboardWidgetType>> {
         return appContext.dataStore.data.map { preferences ->
             //get saved string
-            //if nothing is saved, use "RECENT_BUDGETS" as the default
+            //if nothing is saved, return empty list (will default to all widgets in ViewModel)
             val savedString = preferences[dashboardWidgetsKey(userId)]
-                ?: DashboardWidgetType.RECENT_BUDGETS.name
-
-            //convert the "RECENT_BUDGETS" string back to a list
-            savedString.split(",")
-                .mapNotNull { widgetName ->
-                    try {
-                        //find the enum value for each name
-                        DashboardWidgetType.valueOf(widgetName)
-                    } catch (e: Exception) {
-                        //in case of a saved value that no longer exists
-                        null
+            
+            if (savedString == null || savedString.isBlank()) {
+                emptyList()
+            } else {
+                //convert the string back to a list
+                savedString.split(",")
+                    .mapNotNull { widgetName ->
+                        try {
+                            //find the enum value for each name
+                            DashboardWidgetType.valueOf(widgetName.trim())
+                        } catch (e: Exception) {
+                            //in case of a saved value that no longer exists
+                            null
+                        }
                     }
-                }
+            }
         }
     }
 

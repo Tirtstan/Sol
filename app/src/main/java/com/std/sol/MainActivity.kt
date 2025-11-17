@@ -69,7 +69,6 @@ import com.std.sol.viewmodels.UserViewModel
 import com.std.sol.viewmodels.ViewModelFactory
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
-import com.std.sol.screens.CustomizeDashboardScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -369,22 +368,6 @@ fun AppNavHost(
             )
         }
 
-        composable(
-            route = Screen.CustomizeDashboard.route,
-            enterTransition = {
-                slideInVertically(
-                    initialOffsetY = { 300 }, animationSpec = animationSpec1
-                ) + fadeIn(animationSpec2)
-            },
-            exitTransition = {
-                slideOutVertically(animationSpec = animationSpec1) + fadeOut(animationSpec2)
-            }
-        ) {
-            CustomizeDashboardScreen(
-                navController = navController,
-                userViewModel = userViewModel
-            )
-        }
     }
 }
 

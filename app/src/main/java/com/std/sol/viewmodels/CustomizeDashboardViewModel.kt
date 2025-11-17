@@ -25,7 +25,12 @@ class CustomizeDashboardViewModel(
             //.first() gets the most recent value from the flow
             val savedList = sessionManager.getDashboardWidgets(userId).first()
             enabledWidgets.clear()
-            enabledWidgets.addAll(savedList)
+            // If no widgets are saved, enable all widgets by default
+            if (savedList.isEmpty()) {
+                enabledWidgets.addAll(allWidgets)
+            } else {
+                enabledWidgets.addAll(savedList)
+            }
         }
     }
 

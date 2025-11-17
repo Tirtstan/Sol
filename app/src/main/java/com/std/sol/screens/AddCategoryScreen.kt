@@ -108,10 +108,10 @@ fun AddCategoryScreen(
                 Spacer(modifier = Modifier.size(24.dp))
                 Text(
                     text = if (categoryToEdit == null) "NEW CATEGORY" else "EDIT CATEGORY",
-                    color = Color(0xFFFFFDF0),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFFFFFDF0)
                 )
                 IconButton(onClick = {
                     if (onClose != null) onClose()
@@ -167,10 +167,10 @@ fun AddCategoryScreen(
                 // Color Selection
                 Text(
                     text = "SELECT COLOR",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = Color(0xFFFFFDF0),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -202,10 +202,10 @@ fun AddCategoryScreen(
                 // Icon Selection
                 Text(
                     text = "SELECT ICON",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = Color(0xFFFFFDF0),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMonoFont,
                     modifier = Modifier.fillMaxWidth()
                 )
 
